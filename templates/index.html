@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}EduSmartBot - AI-Powered Education Tool{% endblock %}
+
+{% block content %}
+<div class="row mb-5">
+    <div class="col-md-6">
+        <h1 class="display-4 fw-bold text-primary">EduSmartBot</h1>
+        <p class="lead">Your intelligent AI-powered education assistant</p>
+        <p class="mb-4">Enhance your learning journey with cutting-edge AI tools that help you extract, analyze, and understand educational content.</p>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="/web-scraper" class="btn btn-primary">
+                <i class="fas fa-globe me-2"></i>Start Exploring
+            </a>
+            <a href="#features" class="btn btn-outline-secondary">
+                <i class="fas fa-chevron-down me-2"></i>Learn More
+            </a>
+        </div>
+    </div>
+    <div class="col-md-6 d-flex align-items-center justify-content-center">
+        <img src="{{ url_for('static', filename='images/hero.svg') }}" alt="AI Education" class="img-fluid" style="max-height: 300px;">
+    </div>
+</div>
+
+<hr>
+
+<div id="features" class="row mt-5 g-4 text-center">
+    <h2 class="display-6 fw-bold mb-4">Powerful Learning Features</h2>
+    
+    <!-- Web Scraper -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card h-100 feature-card">
+            <div class="card-body">
+                <div class="feature-icon bg-primary text-white">
+                    <i class="fas fa-globe"></i>
+                </div>
+                <h3 class="card-title">Web Scraper</h3>
+                <p class="card-text">Search, scrape and analyze educational content from websites with AI assistance.</p>
+                <a href="/web-scraper" class="btn btn-sm btn-primary mt-2">Try Now</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- OCR -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card h-100 feature-card">
+            <div class="card-body">
+                <div class="feature-icon bg-success text-white">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <h3 class="card-title">OCR Tool</h3>
+                <p class="card-text">Extract and analyze text from PDFs, images, and diagrams with intelligent OCR.</p>
+                <a href="/ocr" class="btn btn-sm btn-success mt-2">Try Now</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chatbot -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card h-100 feature-card">
+            <div class="card-body">
+                <div class="feature-icon bg-info text-white">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <h3 class="card-title">AI Chatbot</h3>
+                <p class="card-text">Chat with an AI lecturer that explains concepts and answers your questions.</p>
+                <a href="/chatbot" class="btn btn-sm btn-info mt-2">Try Now</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quiz Generator -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card h-100 feature-card">
+            <div class="card-body">
+                <div class="feature-icon bg-warning text-white">
+                    <i class="fas fa-question-circle"></i>
+                </div>
+                <h3 class="card-title">Quiz Generator</h3>
+                <p class="card-text">Create custom quizzes from any educational topic or document to test your knowledge.</p>
+                <a href="/quiz" class="btn btn-sm btn-warning mt-2">Try Now</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-12 text-center">
+        <h2 class="display-6 fw-bold mb-4">How It Works</h2>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="card h-100 steps-card">
+            <div class="card-body">
+                <div class="step-number">1</div>
+                <h4>Select a Tool</h4>
+                <p>Choose from our various AI-powered educational tools designed to enhance your learning experience.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 steps-card">
+            <div class="card-body">
+                <div class="step-number">2</div>
+                <h4>Input Content</h4>
+                <p>Upload files, provide links, or enter topics that you want to learn about or analyze.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 steps-card">
+            <div class="card-body">
+                <div class="step-number">3</div>
+                <h4>Get AI Results</h4>
+                <p>Our AI engine processes your request and provides educational insights, answers, and content.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

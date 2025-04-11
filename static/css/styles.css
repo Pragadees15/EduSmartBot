@@ -1,0 +1,72 @@
+/* Quiz Page Styles */
+.quiz-question {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.quiz-question:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+.quiz-options .form-check {
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    transition: background-color 0.2s;
+}
+
+.quiz-options .form-check:hover {
+    background-color: #f8f9fa;
+}
+
+.quiz-options .form-check-input:checked + .form-check-label {
+    font-weight: bold;
+}
+
+.quiz-explanation {
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    margin-top: 10px;
+    border-left: 4px solid #6c757d;
+}
+
+.correct-answer {
+    color: #198754;
+    font-weight: bold;
+}
+
+.incorrect-answer {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+#quiz-loader {
+    padding: 30px;
+}
+
+#results-container .card-header {
+    font-weight: bold;
+}
+
+.progress {
+    height: 25px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    transition: width 1s ease-in-out;
+}
+
+#quiz-topic-display {
+    font-size: 0.9rem;
+}
+
+#status-message {
+    font-weight: bold;
+} 

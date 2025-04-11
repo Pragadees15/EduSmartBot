@@ -1,0 +1,718 @@
+{% extends 'base.html' %}
+
+{% block title %}Quiz Generator{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* File upload styling */
+    #upload-area {
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    #upload-area:hover {
+        border-color: #0d6efd !important;
+        background-color: #f0f7ff !important;
+    }
+    
+    .position-absolute.inset-0 {
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+    }
+    
+    /* Quiz question styling */
+    .quiz-question {
+        border-left: 4px solid #6c757d;
+        transition: all 0.2s ease;
+    }
+    
+    .quiz-question:hover {
+        border-left-color: #0d6efd;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    /* Quiz options styling */
+    .quiz-options .form-check {
+        padding: 10px 15px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        transition: background-color 0.2s;
+    }
+    
+    .quiz-options .form-check:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .quiz-options .form-check-input:checked + .form-check-label {
+        font-weight: bold;
+    }
+    
+    /* Answer feedback styling */
+    .correct-answer {
+        color: #198754;
+        font-weight: bold;
+    }
+    
+    .incorrect-answer {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    
+    .quiz-explanation {
+        margin-top: 15px;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-left: 4px solid #6c757d;
+        font-style: italic;
+    }
+    
+    /* Form element improvements */
+    .form-control:focus, .form-select:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    
+    /* Button styling */
+    .btn-primary {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+    
+    .btn-primary:hover {
+        background-color: #0b5ed7;
+        border-color: #0a58ca;
+    }
+    
+    .btn-success {
+        background-color: #198754;
+        border-color: #198754;
+    }
+    
+    .btn-success:hover {
+        background-color: #157347;
+        border-color: #146c43;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Quiz Generator</h1>
+    
+    <!-- Alert for error messages -->
+    <div id="error-message" class="alert alert-danger mb-4" style="display: none;"></div>
+    
+    <!-- Quiz generator form -->
+    <div class="card mb-5">
+        <div class="card-header bg-primary text-white">
+            <h2 class="h5 mb-0">Generate a Quiz</h2>
+        </div>
+        <div class="card-body">
+            <form id="quiz-generator-form">
+                <!-- Quiz options -->
+                <div class="row mb-4">
+                    <div class="col-md-4 mb-3">
+                        <label for="quiz-difficulty" class="form-label">Difficulty</label>
+                        <select id="quiz-difficulty" class="form-select">
+                            <option value="easy">Easy (5 questions)</option>
+                            <option value="medium" selected>Medium (7 questions)</option>
+                            <option value="hard">Hard (10 questions)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="quiz-type" class="form-label">Question Type</label>
+                        <select id="quiz-type" class="form-select">
+                            <option value="mcq">Multiple Choice</option>
+                            <option value="tf">True/False</option>
+                            <option value="both" selected>Both</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="input-type" class="form-label">Input Type</label>
+                        <select id="input-type" class="form-select">
+                            <option value="text" selected>Text Input</option>
+                            <option value="file">File Upload</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Text input section -->
+                <div id="text-container">
+                    <div class="mb-3">
+                        <label for="quiz-topic" class="form-label">Topic (optional)</label>
+                        <input type="text" id="quiz-topic" class="form-control" placeholder="Enter a specific topic">
+                    </div>
+                    <div class="mb-3">
+                        <label for="quiz-text" class="form-label">Text Content</label>
+                        <textarea id="quiz-text" class="form-control" rows="8" placeholder="Paste text content here for generating quiz questions..."></textarea>
+                    </div>
+                </div>
+                
+                <!-- File upload section -->
+                <div id="file-container" style="display: none;">
+                    <div class="mb-3">
+                        <label for="file-topic" class="form-label">Topic (optional)</label>
+                        <input type="text" id="file-topic" class="form-control" placeholder="Enter a specific topic">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Upload File</label>
+                        <div id="upload-area" class="border rounded p-4 text-center bg-light position-relative" style="min-height: 150px;">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-secondary mb-3"></i>
+                            <p class="mb-2">Drag & drop your file here</p>
+                            <p class="small text-muted mb-3">Supported formats: PDF, DOCX, TXT</p>
+                            <input type="file" id="file-input" class="position-absolute inset-0 w-100 h-100 opacity-0" style="cursor: pointer;">
+                            <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('file-input').click()">Browse Files</button>
+                        </div>
+                        <div id="file-info" class="mt-2 p-2 bg-light rounded" style="display: none;">
+                            <i class="fas fa-file me-2"></i>
+                            <span id="file-name"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Form buttons -->
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" id="clear-form-btn" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-2"></i>Clear Form
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-magic me-2"></i>Generate Quiz
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Loading indicator -->
+    <div id="loading-indicator" class="text-center py-5" style="display: none;">
+        <div class="spinner-border text-primary mb-3" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p id="status-message" class="text-muted">Processing...</p>
+    </div>
+    
+    <!-- Quiz container -->
+    <div id="quiz-container" class="mb-5" style="display: none;">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h4 mb-0">Quiz</h2>
+            </div>
+            <div class="card-body">
+                <!-- Quiz topic display -->
+                <h3 id="quiz-topic-display" class="h5 mb-4" style="display: none;"></h3>
+                
+                <form id="quiz-form">
+                    <!-- Questions will be inserted here -->
+                    <div id="questions-container"></div>
+                    
+                    <!-- Submit button -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" id="reset-quiz-btn" class="btn btn-outline-secondary">
+                            <i class="fas fa-redo me-2"></i>New Quiz
+                        </button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-check me-2"></i>Submit Answers
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Results container -->
+    <div id="results-container" class="mb-5" style="display: none;">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h4 mb-0">Quiz Results</h2>
+            </div>
+            <div class="card-body">
+                <!-- Score display -->
+                <div class="mb-4">
+                    <h3 class="h5 mb-3">Your Score</h3>
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="h3 mb-0 me-3">
+                            <span id="score">0</span> / <span id="total">0</span>
+                        </div>
+                    </div>
+                    <div class="progress" style="height: 30px;">
+                        <div id="score-bar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                    </div>
+                </div>
+                
+                <!-- Results breakdown -->
+                <div id="results-breakdown"></div>
+                
+                <!-- Generate new quiz button -->
+                <div class="mt-4">
+                    <button type="button" id="new-quiz-btn" class="btn btn-primary">
+                        <i class="fas fa-redo me-2"></i>Generate Another Quiz
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        console.log("Quiz page loaded");
+        
+        // Global variables
+        let currentQuizData = null;
+        
+        // Toggle between text and file input
+        $('#input-type').change(function() {
+            const selectedValue = $(this).val();
+            console.log("Input type changed to:", selectedValue);
+            
+            if (selectedValue === 'text') {
+                $('#text-container').show();
+                $('#file-container').hide();
+            } else {
+                $('#text-container').hide();
+                $('#file-container').show();
+            }
+        });
+        
+        // File input change handler
+        $('#file-input').change(function() {
+            const file = this.files[0];
+            if (file) {
+                const fileSize = (file.size / 1024 / 1024).toFixed(2); // in MB
+                $('#file-name').text(`${file.name} (${fileSize} MB)`);
+                $('#file-info').show();
+                console.log('File selected:', file.name, `${fileSize} MB`);
+            } else {
+                $('#file-info').hide();
+            }
+        });
+        
+        // Drag and drop handlers
+        $('#upload-area')
+            .on('dragover', function(e) {
+                e.preventDefault();
+                $(this).css({
+                    'border-color': '#0d6efd',
+                    'background-color': '#f0f7ff'
+                });
+            })
+            .on('dragleave', function(e) {
+                e.preventDefault();
+                $(this).css({
+                    'border-color': '#6c757d',
+                    'background-color': '#f8f9fa'
+                });
+            })
+            .on('drop', function(e) {
+                e.preventDefault();
+                $(this).css({
+                    'border-color': '#6c757d',
+                    'background-color': '#f8f9fa'
+                });
+                
+                const file = e.originalEvent.dataTransfer.files[0];
+                if (file) {
+                    // Check file extension
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    if (['pdf', 'docx', 'txt'].indexOf(ext) === -1) {
+                        showError('Unsupported file type. Please upload a PDF, DOCX, or TXT file.');
+                        return;
+                    }
+                    
+                    // Update file input and info
+                    document.getElementById('file-input').files = e.originalEvent.dataTransfer.files;
+                    const fileSize = (file.size / 1024 / 1024).toFixed(2);
+                    $('#file-name').text(`${file.name} (${fileSize} MB)`);
+                    $('#file-info').show();
+                    console.log('File dropped:', file.name, `${fileSize} MB`);
+                }
+            });
+        
+        // Form submission handler
+        $('#quiz-generator-form').submit(function(e) {
+            e.preventDefault();
+            
+            // Hide any previous error message
+            $('#error-message').hide();
+            
+            // Get input type
+            const inputType = $('#input-type').val();
+            
+            if (inputType === 'text') {
+                // Text input validation
+                const textContent = $('#quiz-text').val().trim();
+                if (!textContent) {
+                    showError('Please enter text content for the quiz.');
+                    return;
+                }
+                
+                // Get other form values
+                const topic = $('#quiz-topic').val().trim();
+                const difficulty = $('#quiz-difficulty').val();
+                const questionType = $('#quiz-type').val();
+                
+                // Show loading indicator
+                $('#loading-indicator').show();
+                $('#status-message').text('Generating your quiz...');
+                
+                // Submit request to generate quiz
+                $.ajax({
+                    url: '/generate-quiz',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        text: textContent,
+                        topic: topic,
+                        difficulty: difficulty,
+                        question_type: questionType
+                    }),
+                    success: handleQuizGenerationSuccess,
+                    error: handleAjaxError
+                });
+            } else {
+                // File input validation
+                const fileInput = $('#file-input')[0];
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    showError('Please select a file to upload.');
+                    return;
+                }
+                
+                // Get form data
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                
+                // Show loading indicator
+                $('#loading-indicator').show();
+                $('#status-message').text('Uploading file and extracting content...');
+                
+                // Upload file and process
+                $.ajax({
+                    url: '/upload-file',
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        if (response.error) {
+                            $('#loading-indicator').hide();
+                            showError(response.error);
+                            return;
+                        }
+                        
+                        // File uploaded successfully, now generate quiz
+                        $('#status-message').text('Generating quiz from uploaded content...');
+                        
+                        // Get other form values
+                        const topic = $('#file-topic').val().trim();
+                        const difficulty = $('#quiz-difficulty').val();
+                        const questionType = $('#quiz-type').val();
+                        
+                        // Generate quiz with extracted text
+                        $.ajax({
+                            url: '/generate-quiz',
+                            method: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify({
+                                text: response.text,
+                                topic: topic,
+                                difficulty: difficulty,
+                                question_type: questionType
+                            }),
+                            success: handleQuizGenerationSuccess,
+                            error: handleAjaxError
+                        });
+                    },
+                    error: handleAjaxError
+                });
+            }
+        });
+        
+        // Quiz submission handler
+        $('#quiz-form').submit(function(e) {
+            e.preventDefault();
+            
+            if (!currentQuizData || !currentQuizData.questions) {
+                alert('No quiz data available. Please generate a quiz first.');
+                return;
+            }
+            
+            // Collect answers
+            const answers = {};
+            let answeredCount = 0;
+            const totalQuestions = currentQuizData.questions.length;
+            
+            // Loop through questions
+            currentQuizData.questions.forEach(function(_, index) {
+                const selected = $(`input[name="question_${index}"]:checked`).val();
+                if (selected) {
+                    answers[index] = selected;
+                    answeredCount++;
+                }
+            });
+            
+            // Check if all questions are answered
+            if (answeredCount < totalQuestions) {
+                alert(`Please answer all questions. You have ${totalQuestions - answeredCount} unanswered question(s).`);
+                return;
+            }
+            
+            // Show loading
+            $('#loading-indicator').show();
+            $('#status-message').text('Checking your answers...');
+            
+            // Submit answers
+            $.ajax({
+                url: '/submit-quiz',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ answers: answers }),
+                success: function(result) {
+                    $('#loading-indicator').hide();
+                    
+                    if (result.error) {
+                        showError(result.error);
+                        return;
+                    }
+                    
+                    displayResults(result);
+                },
+                error: handleAjaxError
+            });
+        });
+        
+        // Reset button handlers
+        $('#reset-quiz-btn, #new-quiz-btn').click(function() {
+            resetQuiz();
+        });
+        
+        // Clear form button handler
+        $('#clear-form-btn').click(function() {
+            clearForm();
+        });
+        
+        // Helper function to show errors
+        function showError(message) {
+            $('#error-message').text(message).show();
+            $('html, body').animate({
+                scrollTop: $('#error-message').offset().top - 70
+            }, 300);
+        }
+        
+        // Handle successful quiz generation
+        function handleQuizGenerationSuccess(data) {
+            $('#loading-indicator').hide();
+            
+            if (data.error) {
+                showError(data.error);
+                return;
+            }
+            
+            // Store quiz data
+            currentQuizData = data;
+            
+            // Display quiz
+            displayQuiz(data);
+        }
+        
+        // Handle AJAX errors
+        function handleAjaxError(xhr, status, error) {
+            $('#loading-indicator').hide();
+            console.error('AJAX error:', status, error);
+            console.error('Response:', xhr.responseText);
+            
+            try {
+                const errorData = JSON.parse(xhr.responseText);
+                showError(errorData.error || `An error occurred: ${error}`);
+            } catch (e) {
+                showError(`An error occurred: ${error}`);
+            }
+        }
+        
+        // Display quiz questions
+        function displayQuiz(quizData) {
+            console.log('Displaying quiz:', quizData);
+            
+            // Validate quiz data
+            if (!quizData || !quizData.questions || !Array.isArray(quizData.questions) || quizData.questions.length === 0) {
+                showError('Invalid quiz data received.');
+                return;
+            }
+            
+            // Set topic if available
+            if (quizData.topic) {
+                $('#quiz-topic-display').text(quizData.topic).show();
+            } else {
+                $('#quiz-topic-display').hide();
+            }
+            
+            // Generate quiz HTML
+            let questionsHtml = '';
+            
+            // Loop through questions
+            quizData.questions.forEach(function(question, index) {
+                if (!question.question || !question.choices) {
+                    console.error('Invalid question format:', question);
+                    return;
+                }
+                
+                const questionId = `question_${index}`;
+                
+                questionsHtml += `
+                    <div class="card mb-4 quiz-question">
+                        <div class="card-header bg-light">
+                            <strong>Question ${index + 1}:</strong> ${question.question}
+                        </div>
+                        <div class="card-body">
+                            <div class="quiz-options">
+                `;
+                
+                // Add choices based on type
+                if (Array.isArray(question.choices)) {
+                    // Multiple choice questions
+                    question.choices.forEach(function(choice, choiceIndex) {
+                        questionsHtml += `
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="${questionId}" id="${questionId}_${choiceIndex}" value="${choice}">
+                                <label class="form-check-label" for="${questionId}_${choiceIndex}">${choice}</label>
+                            </div>
+                        `;
+                    });
+                } else if (question.choices === 'True/False' || (Array.isArray(question.choices) && question.choices.length === 2 && 
+                          question.choices.includes('True') && question.choices.includes('False'))) {
+                    // True/False questions
+                    questionsHtml += `
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="${questionId}" id="${questionId}_true" value="True">
+                            <label class="form-check-label" for="${questionId}_true">True</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="${questionId}" id="${questionId}_false" value="False">
+                            <label class="form-check-label" for="${questionId}_false">False</label>
+                        </div>
+                    `;
+                }
+                
+                questionsHtml += `
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // Add questions to container
+            $('#questions-container').html(questionsHtml);
+            
+            // Show quiz container
+            $('#quiz-container').show();
+            
+            // Scroll to quiz
+            $('html, body').animate({
+                scrollTop: $('#quiz-container').offset().top - 70
+            }, 500);
+        }
+        
+        // Display quiz results
+        function displayResults(results) {
+            // Update score display
+            $('#score').text(results.score || 0);
+            $('#total').text(results.total || 0);
+            
+            // Calculate percentage
+            const percentage = results.percentage || Math.round((results.score / results.total) * 100) || 0;
+            $('#score-bar').css('width', `${percentage}%`).text(`${percentage}%`);
+            
+            // Generate feedback HTML
+            let feedbackHtml = '';
+            
+            if (results.feedback && results.feedback.length > 0) {
+                feedbackHtml = '<h4 class="mt-4 mb-3">Question Breakdown</h4>';
+                
+                results.feedback.forEach(function(item, index) {
+                    const isCorrect = item.is_correct || false;
+                    const statusClass = isCorrect ? 'bg-success' : 'bg-danger';
+                    const iconClass = isCorrect ? 'check-circle' : 'times-circle';
+                    
+                    feedbackHtml += `
+                        <div class="card mb-3">
+                            <div class="card-header ${statusClass} text-white">
+                                <i class="fas fa-${iconClass} me-2"></i>
+                                Question ${index + 1}
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Question:</strong> ${item.question || 'Not available'}</p>
+                                <p><strong>Your Answer:</strong> <span class="${isCorrect ? 'correct-answer' : 'incorrect-answer'}">${item.user_answer || 'Not provided'}</span></p>
+                                
+                                ${!isCorrect ? `<p><strong>Correct Answer:</strong> ${item.correct_answer || 'Not available'}</p>` : ''}
+                                
+                                <div class="quiz-explanation">
+                                    <strong>Explanation:</strong> ${item.explanation || 'No explanation available.'}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                feedbackHtml = '<div class="alert alert-warning">No detailed feedback available.</div>';
+            }
+            
+            // Update results breakdown
+            $('#results-breakdown').html(feedbackHtml);
+            
+            // Show results container
+            $('#results-container').show();
+            
+            // Scroll to results
+            $('html, body').animate({
+                scrollTop: $('#results-container').offset().top - 70
+            }, 500);
+        }
+        
+        // Reset quiz
+        function resetQuiz() {
+            // Clear data
+            currentQuizData = null;
+            
+            // Hide quiz and results
+            $('#quiz-container').hide();
+            $('#results-container').hide();
+            
+            // Reset to form section
+            $('html, body').animate({
+                scrollTop: $('#quiz-generator-form').offset().top - 70
+            }, 300);
+            
+            // Call server to reset session
+            $.post('/reset-quiz', function(response) {
+                console.log('Quiz reset:', response);
+            });
+        }
+        
+        // Clear form
+        function clearForm() {
+            // Reset form fields
+            $('#quiz-text').val('');
+            $('#file-input').val('');
+            $('#quiz-topic').val('');
+            $('#file-topic').val('');
+            $('#quiz-difficulty').val('medium');
+            $('#quiz-type').val('both');
+            $('#input-type').val('text').trigger('change');
+            $('#file-info').hide();
+            
+            // Hide error messages
+            $('#error-message').hide();
+            
+            // Reset quiz
+            resetQuiz();
+        }
+        
+        // Initialize the form
+        clearForm();
+    });
+</script>
+{% endblock %}

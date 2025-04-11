@@ -1,0 +1,418 @@
+{% extends 'base.html' %}
+
+{% block title %}Web Scraper - EduSmartBot{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-result {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .search-result:hover {
+        background-color: rgba(13, 110, 253, 0.1);
+        transform: translateY(-2px);
+    }
+    
+    .content-box {
+        max-height: 500px;
+        overflow-y: auto;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        padding: 15px;
+        border: 1px solid #dee2e6;
+        font-size: 15px;
+        line-height: 1.6;
+    }
+    
+    .content-box h2 {
+        font-size: 1.4em;
+        margin-top: 1em;
+        margin-bottom: 0.5em;
+        color: #0d6efd;
+    }
+    
+    .content-box p {
+        margin-bottom: 0.8em;
+    }
+    
+    .content-box ul, .content-box ol {
+        margin-bottom: 1em;
+        padding-left: 1.5em;
+    }
+    
+    .answer-box {
+        background-color: #f0f7ff;
+        border-left: 4px solid #0d6efd;
+        padding: 15px;
+        border-radius: 0 5px 5px 0;
+        margin-top: 20px;
+    }
+    
+    .loader {
+        display: none;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #0d6efd;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 2s linear infinite;
+        margin: 20px auto;
+    }
+    
+    .scrape-progress {
+        display: none;
+        margin: 20px 0;
+        padding: 10px;
+        background-color: #e8f4ff;
+        border-radius: 5px;
+        text-align: center;
+    }
+    
+    .content-stats {
+        margin-top: 10px;
+        font-size: 0.9em;
+        color: #666;
+        text-align: right;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1 class="mb-3">
+            <i class="fas fa-globe text-primary me-2"></i>
+            Educational Web Scraper
+        </h1>
+        <p class="lead">Search, scrape and analyze educational content with AI assistance</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-search me-2"></i>Search Educational Content
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="search-form">
+                    <div class="input-group mb-3">
+                        <input type="text" id="search-query" class="form-control" placeholder="Enter your educational search query...">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search me-1"></i> Search
+                        </button>
+                    </div>
+                </form>
+                <div id="search-loader" class="loader"></div>
+                <div id="search-results" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4" id="content-card" style="display:none;">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-file-alt me-2"></i>Extracted Content
+                </h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mb-1" id="content-url"></h6>
+                <div id="scrape-progress" class="scrape-progress">
+                    <i class="fas fa-sync fa-spin me-2"></i>
+                    <span id="scrape-status">Processing website content...</span>
+                </div>
+                <div class="content-box mb-3" id="scraped-content"></div>
+                <div class="content-stats" id="content-stats"></div>
+                
+                <div class="mt-4">
+                    <h5>Ask a Question About This Content</h5>
+                    <form id="question-form">
+                        <div class="input-group mb-3">
+                            <input type="text" id="question-input" class="form-control" placeholder="What would you like to know about this content?">
+                            <button class="btn btn-success" type="submit" id="ask-button" disabled>
+                                <i class="fas fa-question-circle me-1"></i> Ask
+                            </button>
+                        </div>
+                    </form>
+                    <div id="question-loader" class="loader"></div>
+                    <div id="answer-container" class="answer-box" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row" id="direct-url-section">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-link me-2"></i>Scrape Direct URL
+                </h5>
+            </div>
+            <div class="card-body">
+                <p>Know the exact webpage you want to scrape? Enter the URL below:</p>
+                <form id="direct-url-form">
+                    <div class="input-group mb-3">
+                        <input type="url" id="direct-url" class="form-control" placeholder="https://example.com/page" required>
+                        <button class="btn btn-info" type="submit">
+                            <i class="fas fa-download me-1"></i> Scrape
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Reset UI on page load/refresh
+        resetUI();
+        
+        function resetUI() {
+            // Clear search query
+            $('#search-query').val('');
+            
+            // Clear search results
+            $('#search-results').html('');
+            
+            // Hide content card and answer
+            $('#content-card').hide();
+            $('#answer-container').hide();
+            
+            // Clear content
+            $('#content-url').text('');
+            $('#scraped-content').html('');
+            $('#content-stats').html('');
+            $('#question-input').val('');
+            $('#direct-url').val('');
+            
+            // Hide loaders and progress indicators
+            $('#search-loader').hide();
+            $('#question-loader').hide();
+            $('#scrape-progress').hide();
+            
+            // Disable ask button
+            $('#ask-button').prop('disabled', true);
+        }
+        
+        // Format content for better display
+        function formatContent(content) {
+            if (!content) return '';
+            
+            // Convert headings with markdown-style format to actual HTML headings
+            content = content.replace(/\n## (.+?)\n/g, '<h2>$1</h2>');
+            
+            // Convert bullet points to list items
+            let formattedContent = '';
+            let inList = false;
+            
+            content.split('\n').forEach(line => {
+                line = line.trim();
+                if (line.startsWith('- ')) {
+                    if (!inList) {
+                        formattedContent += '<ul>';
+                        inList = true;
+                    }
+                    formattedContent += '<li>' + line.substring(2) + '</li>';
+                } else {
+                    if (inList) {
+                        formattedContent += '</ul>';
+                        inList = false;
+                    }
+                    if (line) {
+                        formattedContent += '<p>' + line + '</p>';
+                    }
+                }
+            });
+            
+            if (inList) {
+                formattedContent += '</ul>';
+            }
+            
+            return formattedContent;
+        }
+        
+        // Search form submission
+        $('#search-form').submit(function(e) {
+            e.preventDefault();
+            const query = $('#search-query').val();
+            
+            if (!query) {
+                alert('Please enter a search query');
+                return;
+            }
+            
+            $('#search-loader').show();
+            $('#search-results').html('');
+            
+            // Hide previous content when starting a new search
+            $('#content-card').hide();
+            $('#answer-container').hide();
+            
+            $.ajax({
+                url: '/search-web',
+                method: 'POST',
+                data: { query: query },
+                success: function(data) {
+                    $('#search-loader').hide();
+                    
+                    if (data.error) {
+                        $('#search-results').html(`<div class="alert alert-danger">${data.error}</div>`);
+                        return;
+                    }
+                    
+                    if (data.length === 0) {
+                        $('#search-results').html('<div class="alert alert-info">No results found. Try a different search query.</div>');
+                        return;
+                    }
+                    
+                    let resultsHtml = '<div class="list-group">';
+                    
+                    data.forEach(function(result) {
+                        resultsHtml += `
+                            <div class="list-group-item search-result" data-url="${result.url}">
+                                <h5 class="mb-1">${result.title}</h5>
+                                <small class="text-muted">${result.url}</small>
+                            </div>
+                        `;
+                    });
+                    
+                    resultsHtml += '</div>';
+                    $('#search-results').html(resultsHtml);
+                    
+                    // Handle result click
+                    $('.search-result').click(function() {
+                        const url = $(this).data('url');
+                        scrapeWebsite(url);
+                    });
+                },
+                error: function() {
+                    $('#search-loader').hide();
+                    $('#search-results').html('<div class="alert alert-danger">An error occurred while searching. Please try again.</div>');
+                }
+            });
+        });
+        
+        // Direct URL form submission
+        $('#direct-url-form').submit(function(e) {
+            e.preventDefault();
+            const url = $('#direct-url').val();
+            
+            if (!url) {
+                alert('Please enter a valid URL');
+                return;
+            }
+            
+            scrapeWebsite(url);
+        });
+        
+        // Function to scrape website content
+        function scrapeWebsite(url) {
+            // Show content card with loading state
+            $('#content-card').show();
+            $('#content-url').text(url);
+            $('#scraped-content').html('');
+            $('#content-stats').html('');
+            $('#scrape-progress').show();
+            $('#scrape-status').text('Processing website content...');
+            
+            // Scroll to content area
+            $('html, body').animate({
+                scrollTop: $('#content-card').offset().top - 70
+            }, 500);
+            
+            // Clear previous answers when scraping a new site
+            $('#answer-container').hide();
+            $('#question-input').val('');
+            $('#ask-button').prop('disabled', true);
+            
+            $.ajax({
+                url: '/scrape-website',
+                method: 'POST',
+                data: { url: url },
+                success: function(data) {
+                    $('#scrape-progress').hide();
+                    
+                    if (data.error) {
+                        $('#scraped-content').html(`<div class="alert alert-danger">${data.error}</div>`);
+                        return;
+                    }
+                    
+                    // Display the content
+                    const formattedContent = formatContent(data.content);
+                    $('#scraped-content').html(formattedContent);
+                    
+                    // Show content stats
+                    const wordCount = data.content.split(/\s+/).length;
+                    const charCount = data.content.length;
+                    $('#content-stats').html(`Word count: ${wordCount} | Character count: ${charCount}`);
+                    
+                    // Enable ask button
+                    $('#ask-button').prop('disabled', false);
+                },
+                error: function(xhr) {
+                    $('#scrape-progress').hide();
+                    
+                    let errorMessage = 'An error occurred while scraping the website.';
+                    if (xhr.responseJSON && xhr.responseJSON.error) {
+                        errorMessage += ' ' + xhr.responseJSON.error;
+                    }
+                    
+                    $('#scraped-content').html(`<div class="alert alert-danger">${errorMessage}</div>`);
+                }
+            });
+        }
+        
+        // Question form submission
+        $('#question-form').submit(function(e) {
+            e.preventDefault();
+            const question = $('#question-input').val();
+            
+            if (!question) {
+                alert('Please enter a question');
+                return;
+            }
+            
+            $('#question-loader').show();
+            $('#answer-container').hide();
+            
+            $.ajax({
+                url: '/ask-scraped-content',
+                method: 'POST',
+                data: { question: question },
+                success: function(data) {
+                    $('#question-loader').hide();
+                    
+                    if (data.error) {
+                        alert('Error: ' + data.error);
+                        return;
+                    }
+                    
+                    // Display the answer
+                    $('#answer-container').html(data.answer.replace(/\n/g, '<br>'));
+                    $('#answer-container').show();
+                },
+                error: function() {
+                    $('#question-loader').hide();
+                    alert('An error occurred while processing your question. Please try again.');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 
