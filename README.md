@@ -219,7 +219,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 <div align="center">
-  <sub>Built with ❤️ by <a href="https://github.com/Pragadees15">Pragadeeswaran K</a> and the EduSmartBot team</sub>
+  <sub>Built with ❤️ by <a href="https://github.com/Pragadees15">Pragadeeswaran K</a>, <a href="https://github.com/Pranav-Aditya016">Pranav Aditya</a></sub>
   <br>
   <sub>✨ Making education smarter, one AI at a time ✨</sub>
 </div> 
