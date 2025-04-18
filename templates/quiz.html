@@ -4,24 +4,6 @@
 
 {% block extra_css %}
 <style>
-    /* File upload styling */
-    #upload-area {
-        transition: all 0.3s ease;
-        cursor: pointer;
-    }
-    
-    #upload-area:hover {
-        border-color: #0d6efd !important;
-        background-color: #f0f7ff !important;
-    }
-    
-    .position-absolute.inset-0 {
-        top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;
-    }
-    
     /* Quiz question styling */
     .quiz-question {
         border-left: 4px solid #6c757d;
@@ -113,7 +95,7 @@
             <form id="quiz-generator-form">
                 <!-- Quiz options -->
                 <div class="row mb-4">
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-6 mb-3">
                         <label for="quiz-difficulty" class="form-label">Difficulty</label>
                         <select id="quiz-difficulty" class="form-select">
                             <option value="easy">Easy (5 questions)</option>
@@ -121,19 +103,12 @@
                             <option value="hard">Hard (10 questions)</option>
                         </select>
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-6 mb-3">
                         <label for="quiz-type" class="form-label">Question Type</label>
                         <select id="quiz-type" class="form-select">
                             <option value="mcq">Multiple Choice</option>
                             <option value="tf">True/False</option>
                             <option value="both" selected>Both</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label for="input-type" class="form-label">Input Type</label>
-                        <select id="input-type" class="form-select">
-                            <option value="text" selected>Text Input</option>
-                            <option value="file">File Upload</option>
                         </select>
                     </div>
                 </div>
@@ -147,29 +122,6 @@
                     <div class="mb-3">
                         <label for="quiz-text" class="form-label">Text Content</label>
                         <textarea id="quiz-text" class="form-control" rows="8" placeholder="Paste text content here for generating quiz questions..."></textarea>
-                    </div>
-                </div>
-                
-                <!-- File upload section -->
-                <div id="file-container" style="display: none;">
-                    <div class="mb-3">
-                        <label for="file-topic" class="form-label">Topic (optional)</label>
-                        <input type="text" id="file-topic" class="form-control" placeholder="Enter a specific topic">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Upload File</label>
-                        <div id="upload-area" class="border rounded p-4 text-center bg-light position-relative" style="min-height: 150px;">
-                            <i class="fas fa-cloud-upload-alt fa-3x text-secondary mb-3"></i>
-                            <p class="mb-2">Drag & drop your file here</p>
-                            <p class="small text-muted mb-3">Supported formats: PDF, DOCX, TXT</p>
-                            <input type="file" id="file-input" class="position-absolute inset-0 w-100 h-100 opacity-0" style="cursor: pointer;">
-                            <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('file-input').click()">Browse Files</button>
-                        </div>
-                        <div id="file-info" class="mt-2 p-2 bg-light rounded" style="display: none;">
-                            <i class="fas fa-file me-2"></i>
-                            <span id="file-name"></span>
-                        </div>
                     </div>
                 </div>
                 
@@ -265,74 +217,6 @@
         // Global variables
         let currentQuizData = null;
         
-        // Toggle between text and file input
-        $('#input-type').change(function() {
-            const selectedValue = $(this).val();
-            console.log("Input type changed to:", selectedValue);
-            
-            if (selectedValue === 'text') {
-                $('#text-container').show();
-                $('#file-container').hide();
-            } else {
-                $('#text-container').hide();
-                $('#file-container').show();
-            }
-        });
-        
-        // File input change handler
-        $('#file-input').change(function() {
-            const file = this.files[0];
-            if (file) {
-                const fileSize = (file.size / 1024 / 1024).toFixed(2); // in MB
-                $('#file-name').text(`${file.name} (${fileSize} MB)`);
-                $('#file-info').show();
-                console.log('File selected:', file.name, `${fileSize} MB`);
-            } else {
-                $('#file-info').hide();
-            }
-        });
-        
-        // Drag and drop handlers
-        $('#upload-area')
-            .on('dragover', function(e) {
-                e.preventDefault();
-                $(this).css({
-                    'border-color': '#0d6efd',
-                    'background-color': '#f0f7ff'
-                });
-            })
-            .on('dragleave', function(e) {
-                e.preventDefault();
-                $(this).css({
-                    'border-color': '#6c757d',
-                    'background-color': '#f8f9fa'
-                });
-            })
-            .on('drop', function(e) {
-                e.preventDefault();
-                $(this).css({
-                    'border-color': '#6c757d',
-                    'background-color': '#f8f9fa'
-                });
-                
-                const file = e.originalEvent.dataTransfer.files[0];
-                if (file) {
-                    // Check file extension
-                    const ext = file.name.split('.').pop().toLowerCase();
-                    if (['pdf', 'docx', 'txt'].indexOf(ext) === -1) {
-                        showError('Unsupported file type. Please upload a PDF, DOCX, or TXT file.');
-                        return;
-                    }
-                    
-                    // Update file input and info
-                    document.getElementById('file-input').files = e.originalEvent.dataTransfer.files;
-                    const fileSize = (file.size / 1024 / 1024).toFixed(2);
-                    $('#file-name').text(`${file.name} (${fileSize} MB)`);
-                    $('#file-info').show();
-                    console.log('File dropped:', file.name, `${fileSize} MB`);
-                }
-            });
-        
         // Form submission handler
         $('#quiz-generator-form').submit(function(e) {
             e.preventDefault();
@@ -340,96 +224,49 @@
             // Hide any previous error message
             $('#error-message').hide();
             
-            // Get input type
-            const inputType = $('#input-type').val();
-            
-            if (inputType === 'text') {
-                // Text input validation
-                const textContent = $('#quiz-text').val().trim();
-                if (!textContent) {
-                    showError('Please enter text content for the quiz.');
-                    return;
-                }
-                
-                // Get other form values
-                const topic = $('#quiz-topic').val().trim();
-                const difficulty = $('#quiz-difficulty').val();
-                const questionType = $('#quiz-type').val();
-                
-                // Show loading indicator
-                $('#loading-indicator').show();
-                $('#status-message').text('Generating your quiz...');
-                
-                // Submit request to generate quiz
-                $.ajax({
-                    url: '/generate-quiz',
-                    method: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({
-                        text: textContent,
-                        topic: topic,
-                        difficulty: difficulty,
-                        question_type: questionType
-                    }),
-                    success: handleQuizGenerationSuccess,
-                    error: handleAjaxError
-                });
-            } else {
-                // File input validation
-                const fileInput = $('#file-input')[0];
-                if (!fileInput.files || fileInput.files.length === 0) {
-                    showError('Please select a file to upload.');
-                    return;
-                }
-                
-                // Get form data
-                const formData = new FormData();
-                formData.append('file', fileInput.files[0]);
-                
-                // Show loading indicator
-                $('#loading-indicator').show();
-                $('#status-message').text('Uploading file and extracting content...');
-                
-                // Upload file and process
-                $.ajax({
-                    url: '/upload-file',
-                    method: 'POST',
-                    data: formData,
-                    processData: false,
-                    contentType: false,
-                    success: function(response) {
-                        if (response.error) {
-                            $('#loading-indicator').hide();
-                            showError(response.error);
-                            return;
-                        }
-                        
-                        // File uploaded successfully, now generate quiz
-                        $('#status-message').text('Generating quiz from uploaded content...');
-                        
-                        // Get other form values
-                        const topic = $('#file-topic').val().trim();
-                        const difficulty = $('#quiz-difficulty').val();
-                        const questionType = $('#quiz-type').val();
-                        
-                        // Generate quiz with extracted text
-                        $.ajax({
-                            url: '/generate-quiz',
-                            method: 'POST',
-                            contentType: 'application/json',
-                            data: JSON.stringify({
-                                text: response.text,
-                                topic: topic,
-                                difficulty: difficulty,
-                                question_type: questionType
-                            }),
-                            success: handleQuizGenerationSuccess,
-                            error: handleAjaxError
-                        });
-                    },
-                    error: handleAjaxError
-                });
+            // Text input validation
+            const textContent = $('#quiz-text').val().trim();
+            if (!textContent) {
+                showError('Please enter text content for the quiz.');
+                return;
             }
+            
+            // Check minimum content length
+            if (textContent.length < 100) {
+                showError(`
+                    <div class="alert-heading h5 mb-2">Content Too Short</div>
+                    <p>The provided content is too short to generate meaningful quiz questions. Please:</p>
+                    <ul>
+                        <li>Add more substantial text content (at least 100 characters)</li>
+                        <li>Ensure your content contains educational material</li>
+                    </ul>
+                `);
+                return;
+            }
+            
+            // Get other form values
+            const topic = $('#quiz-topic').val().trim();
+            const difficulty = $('#quiz-difficulty').val();
+            const questionType = $('#quiz-type').val();
+            
+            // Show loading indicator
+            $('#loading-indicator').show();
+            $('#status-message').text('Generating your quiz...');
+            
+            // Submit request to generate quiz
+            $.ajax({
+                url: '/generate-quiz',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    text: textContent,
+                    topic: topic,
+                    difficulty: difficulty,
+                    question_type: questionType
+                }),
+                success: handleQuizGenerationSuccess,
+                error: handleAjaxError
+            });
         });
         
         // Quiz submission handler
@@ -497,7 +334,7 @@
         
         // Helper function to show errors
         function showError(message) {
-            $('#error-message').text(message).show();
+            $('#error-message').html(message).show();
             $('html, body').animate({
                 scrollTop: $('#error-message').offset().top - 70
             }, 300);
@@ -508,7 +345,19 @@
             $('#loading-indicator').hide();
             
             if (data.error) {
-                showError(data.error);
+                // Add special handling for content too short error
+                if (data.error.includes("too short")) {
+                    showError(`
+                        <div class="alert-heading h5 mb-2">Content Too Short</div>
+                        <p>The provided content is too short to generate meaningful quiz questions. Please:</p>
+                        <ul>
+                            <li>Add more substantial text content (at least 100 characters)</li>
+                            <li>Ensure your content contains educational material</li>
+                        </ul>
+                    `);
+                } else {
+                    showError(data.error);
+                }
                 return;
             }
             
@@ -696,13 +545,9 @@
         function clearForm() {
             // Reset form fields
             $('#quiz-text').val('');
-            $('#file-input').val('');
             $('#quiz-topic').val('');
-            $('#file-topic').val('');
             $('#quiz-difficulty').val('medium');
             $('#quiz-type').val('both');
-            $('#input-type').val('text').trigger('change');
-            $('#file-info').hide();
             
             // Hide error messages
             $('#error-message').hide();

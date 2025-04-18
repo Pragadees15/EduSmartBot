@@ -216,6 +216,7 @@
                 
                 <div class="mt-4">
                     <h5>Ask a Question About This Content</h5>
+                    <p class="text-muted small">You can ask questions about the extracted content above. The AI will analyze the content and provide answers based on what it finds.</p>
                     <form id="question-form">
                         <div class="input-group mb-3">
                             <input type="text" id="question-input" class="form-control" placeholder="What would you like to know about this content?">
@@ -455,7 +456,13 @@
                     $('#question-loader').hide();
                     
                     if (data.error) {
-                        alert('Error: ' + data.error);
+                        console.error('Error from server:', data.error);
+                        if (data.error === 'No extracted text available') {
+                            $('#answer-container').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>No document content found. Please upload a document first.</div>');
+                        } else {
+                            $('#answer-container').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>' + data.error + '</div>');
+                        }
+                        $('#answer-container').show();
                         return;
                     }
                     
@@ -463,9 +470,11 @@
                     $('#answer-container').html(data.answer.replace(/\n/g, '<br>'));
                     $('#answer-container').show();
                 },
-                error: function() {
+                error: function(xhr, status, error) {
                     $('#question-loader').hide();
-                    alert('An error occurred while processing your question. Please try again.');
+                    console.error('Ajax error:', status, error);
+                    $('#answer-container').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>An error occurred while processing your question. Please try again.</div>');
+                    $('#answer-container').show();
                 }
             });
         });

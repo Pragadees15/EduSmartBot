@@ -111,7 +111,7 @@ pip install -r requirements.txt
    ```bash
    # Follow instructions at https://ollama.ai/
    ollama pull mistral
-   ollama pull granite3.2-vision  # For vision features
+   ollama pull llava  # For vision features
    ```
 
 2. **Install Tesseract OCR**:

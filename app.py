@@ -9,9 +9,23 @@ from models.chatbot import get_chatbot_response
 from models.quiz import generate_quiz as generate_quiz_function, process_quiz_answers
 import uuid
 import models.ocr
+from flask_session import Session
+import tempfile
 
 app = Flask(__name__)
 app.secret_key = 'edusmart_secret_key'
+
+# Configure server-side session storage
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_FILE_DIR"] = os.path.join(tempfile.gettempdir(), "edusmart_sessions")
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_USE_SIGNER"] = True
+
+# Create sessions directory if it doesn't exist
+os.makedirs(app.config["SESSION_FILE_DIR"], exist_ok=True)
+print(f"Session storage path: {app.config['SESSION_FILE_DIR']}")
+
+Session(app)
 
 # Set absolute path for uploads folder
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
@@ -116,6 +130,7 @@ def upload_file():
             
             # Store extracted text in session for later use
             session['extracted_text'] = extracted_text
+            session.modified = True
         else:
             # Clean up the uploaded file
             os.remove(file_path)
@@ -139,7 +154,10 @@ def upload_file():
 def ask_ocr_content():
     question = request.form.get('question')
     text = session.get('extracted_text', '')
+    print(f"DEBUG - Session extracted_text length: {len(text) if text else 0}")
+    
     if not text:
+        print("DEBUG - No extracted text available in session")
         return jsonify({'error': 'No extracted text available'})
     
     answer = process_ocr_question(text, question)
@@ -314,6 +332,16 @@ def debug_session():
 def clear_session():
     session.clear()
     return redirect(url_for('index'))
+
+@app.route('/debug/session-test')
+def test_session():
+    # Set a value in the session
+    session['test_value'] = 'This is a test'
+    session.modified = True
+    return jsonify({
+        'message': 'Test value set in session. Visit /debug/session to see all session data.',
+        'success': True
+    })
 
 if __name__ == '__main__':
     # Enable cloudflared tunnel for public URL
