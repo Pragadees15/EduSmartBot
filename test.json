@@ -1,0 +1,23 @@
+{
+  "timetable": [
+    { "day": "Monday", "start": "09:00", "end": "10:30", "title": "Mathematics Class", "type": "class" },
+    { "day": "Monday", "start": "11:00", "end": "12:00", "title": "Physics Class", "type": "class" },
+    { "day": "Monday", "start": "14:00", "end": "16:00", "title": "Computer Networks Lab", "type": "lab" },
+    { "day": "Tuesday", "start": "10:00", "end": "11:30", "title": "Data Structures Class", "type": "class" },
+    { "day": "Tuesday", "start": "14:00", "end": "15:00", "title": "Operating Systems Class", "type": "class" },
+    { "day": "Tuesday", "start": "16:00", "end": "18:00", "title": "Electronics Lab", "type": "lab" },
+    { "day": "Wednesday", "start": "09:00", "end": "10:00", "title": "Mathematics Class", "type": "class" },
+    { "day": "Wednesday", "start": "11:00", "end": "12:00", "title": "Physics Lab", "type": "lab" },
+    { "day": "Wednesday", "start": "14:00", "end": "15:30", "title": "Database Systems Class", "type": "class" },
+    { "day": "Thursday", "start": "10:00", "end": "11:00", "title": "Computer Networks Class", "type": "class" },
+    { "day": "Thursday", "start": "13:00", "end": "14:00", "title": "Data Structures Lab", "type": "lab" },
+    { "day": "Friday", "start": "09:00", "end": "10:30", "title": "Operating Systems Class", "type": "class" },
+    { "day": "Friday", "start": "11:00", "end": "12:00", "title": "Database Systems Lab", "type": "lab" }
+  ],
+  "study_info": {
+    "subjects": "Mathematics, Physics, Computer Networks, Data Structures, Operating Systems, Database Systems, Electronics",
+    "exams": "Mathematics Midterm: Dec 15, Physics Lab Report: Dec 20, Operating Systems Final: Jan 5",
+    "focus_areas": "Algebra, Network Protocols, Process Scheduling, SQL Queries",
+    "study_goals": "Improve problem-solving in Mathematics, Master OS concepts, Complete database project"
+  }
+}

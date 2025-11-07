@@ -1,0 +1,590 @@
+{% extends 'base.html' %}
+
+{% block title %}Timetable{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tt-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .timetable-grid { min-width: 1024px; width: 100%; }
+    .timetable-grid { display: grid; grid-template-columns: 120px repeat(7, 1fr); border: 1px solid var(--card-border); border-radius: 12px; overflow: hidden; }
+    .tt-header { background: rgba(13,110,253,0.08); font-weight: 600; padding: 10px; text-align: center; border-right: 1px solid var(--card-border); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tt-time { padding: 8px 10px; font-size: 0.9rem; border-right: 1px solid var(--card-border); background: rgba(0,0,0,0.02); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tt-cell { position: relative; min-height: 44px; border-right: 1px solid var(--card-border); border-top: 1px solid var(--card-border); overflow: visible; cursor: pointer; transition: background-color 0.2s; }
+    .tt-cell:hover { background-color: rgba(13,110,253,0.05); }
+    .tt-event { position: absolute; left: 4px; right: 4px; padding: 6px 8px; border-radius: 8px; color: #fff; font-size: 0.8rem; box-shadow: 0 6px 14px rgba(0,0,0,0.12); overflow: hidden; line-height: 1.2; min-height: 28px; z-index: 5; cursor: pointer; }
+    .tt-event:hover { transform: scale(1.02); box-shadow: 0 8px 16px rgba(0,0,0,0.2); }
+    .tt-event.class { background-color: #0d6efd; }
+    .tt-event.lab { background-color: #6f42c1; }
+    .tt-event.self-study { background-color: #198754; }
+    .tt-event .title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+    .tt-event .time { opacity: 0.95; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+    .tt-event .del { position: absolute; top: 4px; right: 6px; cursor: pointer; color: rgba(255,255,255,0.9); z-index: 10; }
+    .tt-event .del:hover { color: #fff; }
+    .tt-legend .badge { font-size: 0.8rem; }
+    .suggestion { border-left: 4px solid #198754; background: rgba(25,135,84,0.06); }
+    #ai-suggestions .card { overflow: hidden; }
+    #suggestions-body { max-height: 320px; overflow: auto; }
+    .modal { z-index: 1060 !important; position: fixed; }
+    .modal-backdrop { z-index: 1055 !important; }
+    .modal-dialog { 
+        margin: 2rem auto;
+        position: relative;
+        width: auto;
+        max-width: 500px;
+        pointer-events: none;
+    }
+    .modal.show .modal-dialog {
+        transform: translate(0, 0);
+    }
+    .modal-content {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        pointer-events: auto;
+        background-color: #fff;
+        background-clip: padding-box;
+        border: 1px solid rgba(0,0,0,.2);
+        border-radius: 0.5rem;
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
+        outline: 0;
+    }
+    @media (max-height: 600px) {
+        .modal-dialog { margin: 0.5rem auto; }
+        .modal-content { max-height: calc(100vh - 1rem); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h1 class="mb-0" data-i18n="timetable">Timetable</h1>
+        <div class="tt-legend">
+            <span class="badge bg-primary me-1">Class</span>
+            <span class="badge bg-purple me-1" style="background:#6f42c1">Lab</span>
+            <span class="badge bg-success">Self-Study</span>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <strong data-i18n="add_event">Add Event</strong>
+        </div>
+        <div class="card-body">
+            <form id="event-form" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label" for="event-title" data-i18n="subject">Subject</label>
+                    <input id="event-title" class="form-control" type="text" placeholder="e.g., Math Class">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="event-type">Type</label>
+                    <select id="event-type" class="form-select">
+                        <option value="class">Class</option>
+                        <option value="lab">Lab</option>
+                        <option value="self-study">Self-Study</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="event-day">Day</label>
+                    <select id="event-day" class="form-select">
+                        {% for d in days %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="event-start" data-i18n="start_time">Start Time</label>
+                    <input id="event-start" type="time" class="form-control" min="06:00" max="22:00" step="900">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="event-end" data-i18n="end_time">End Time</label>
+                    <input id="event-end" type="time" class="form-control" min="06:00" max="22:00" step="900">
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100"><i class="fas fa-plus me-1"></i><span data-i18n="add_event">Add Event</span></button>
+                </div>
+            </form>
+            <div class="form-text text-muted mt-1">Time must be between 06:00 and 22:00, 24-hour format.</div>
+        </div>
+    </div>
+
+    <!-- Study Information Card -->
+    <div class="card mb-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <strong data-i18n="study_info">Study Information</strong>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#study-info-collapse" aria-expanded="false">
+                <i class="fas fa-chevron-down" id="study-info-icon"></i>
+            </button>
+        </div>
+        <div class="collapse" id="study-info-collapse">
+            <div class="card-body">
+                <p class="text-muted small mb-3" data-i18n="study_info_desc">Provide your study information to get personalized AI suggestions. This helps the AI understand your subjects, upcoming exams, and focus areas.</p>
+                <form id="study-info-form" class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="info-subjects" data-i18n="subjects_label">Subjects/Courses</label>
+                        <input id="info-subjects" class="form-control" type="text" placeholder="e.g., Mathematics, Physics, Computer Networks" data-i18n-placeholder="subjects_placeholder">
+                        <div class="form-text" data-i18n="subjects_help">Comma-separated list of your subjects</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="info-exams" data-i18n="exams_label">Upcoming Exams/Deadlines</label>
+                        <input id="info-exams" class="form-control" type="text" placeholder="e.g., Math Midterm: Dec 15, Physics Lab Report: Dec 20" data-i18n-placeholder="exams_placeholder">
+                        <div class="form-text" data-i18n="exams_help">List your upcoming exams and deadlines</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="info-focus" data-i18n="focus_label">Areas Needing Focus</label>
+                        <textarea id="info-focus" class="form-control" rows="2" placeholder="e.g., Algebra, Thermodynamics, Database Design" data-i18n-placeholder="focus_placeholder"></textarea>
+                        <div class="form-text" data-i18n="focus_help">Topics or subjects you want to focus on more</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="info-goals" data-i18n="goals_label">Study Goals</label>
+                        <textarea id="info-goals" class="form-control" rows="2" placeholder="e.g., Improve problem-solving skills, Master calculus basics" data-i18n-placeholder="goals_placeholder"></textarea>
+                        <div class="form-text" data-i18n="goals_help">Your learning objectives and goals</div>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i><span data-i18n="common.save">Save</span></button>
+                        <span id="info-saved" class="text-success ms-2" style="display:none;"><i class="fas fa-check me-1"></i><span data-i18n="info_saved">Information saved!</span></span>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h5 mb-0">Weekly View (06:00–22:00)</h2>
+        <div class="d-flex gap-2">
+            <label class="btn btn-outline-secondary mb-0">
+                <i class="fas fa-file-import me-1"></i><span data-i18n="common.import">Import</span>
+                <input id="import-file" type="file" accept="application/json" hidden>
+            </label>
+            <a href="/timetable/export" class="btn btn-outline-secondary mb-0" download><i class="fas fa-file-export me-1"></i><span data-i18n="common.export">Export</span></a>
+            <button id="clear-all" class="btn btn-outline-danger"><i class="fas fa-trash me-1"></i><span data-i18n="clear_all">Clear All</span></button>
+            <button id="ai-suggest" class="btn btn-success"><i class="fas fa-magic me-1"></i><span data-i18n="ai_suggest">Suggest Study Plan</span></button>
+        </div>
+    </div>
+    <div id="error-box" class="alert alert-danger" style="display:none"></div>
+
+    <div class="tt-wrap mb-4">
+    <div id="grid" class="timetable-grid">
+        <div class="tt-header">Time</div>
+        {% for d in days %}<div class="tt-header">{{ d }}</div>{% endfor %}
+        {% for h in hours %}
+            <div class="tt-time">{{ h }}</div>
+            {% for d in days %}<div class="tt-cell" data-day="{{ d }}" data-hour="{{ h }}"></div>{% endfor %}
+        {% endfor %}
+    </div>
+    </div>
+
+    <div id="ai-suggestions" class="card" style="display:none">
+        <div class="card-header bg-light"><strong data-i18n="ai_suggest">Suggest Study Plan</strong></div>
+        <div class="card-body" id="suggestions-body"></div>
+    </div>
+    
+    <!-- Edit Event Modal -->
+    <div class="modal fade" id="edit-event-modal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" data-i18n="edit_event">Edit Event</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="edit-event-form">
+                        <input type="hidden" id="edit-event-id">
+                        <div class="mb-3">
+                            <label class="form-label" data-i18n="subject">Subject</label>
+                            <input id="edit-event-title" class="form-control" type="text" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Type</label>
+                            <select id="edit-event-type" class="form-select">
+                                <option value="class">Class</option>
+                                <option value="lab">Lab</option>
+                                <option value="self-study">Self-Study</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Day</label>
+                            <select id="edit-event-day" class="form-select">
+                                {% for d in days %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label" data-i18n="start_time">Start Time</label>
+                                <input id="edit-event-start" type="time" class="form-control" min="06:00" max="22:00" step="900" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" data-i18n="end_time">End Time</label>
+                                <input id="edit-event-end" type="time" class="form-control" min="06:00" max="22:00" step="900" required>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="common.close">Close</button>
+                    <button type="button" class="btn btn-primary" id="save-edit-btn" data-i18n="common.save">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Event Modal (for click-to-add) -->
+    <div class="modal fade" id="add-event-modal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" data-i18n="add_event">Add Event</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="quick-add-event-form">
+                        <div class="mb-3">
+                            <label class="form-label" data-i18n="subject">Subject</label>
+                            <input id="quick-add-title" class="form-control" type="text" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Type</label>
+                            <select id="quick-add-type" class="form-select">
+                                <option value="class">Class</option>
+                                <option value="lab">Lab</option>
+                                <option value="self-study">Self-Study</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Day</label>
+                            <select id="quick-add-day" class="form-select">
+                                {% for d in days %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label" data-i18n="start_time">Start Time</label>
+                                <input id="quick-add-start" type="time" class="form-control" min="06:00" max="22:00" step="900" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" data-i18n="end_time">End Time</label>
+                                <input id="quick-add-end" type="time" class="form-control" min="06:00" max="22:00" step="900" required>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="common.close">Close</button>
+                    <button type="button" class="btn btn-primary" id="save-quick-add-btn" data-i18n="add_event">Add Event</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Embed server data as JSON to avoid inline template code in JS -->
+    <script type="application/json" id="tt-data">{{ (timetable or []) | tojson }}</script>
+    <script type="application/json" id="tt-days">{{ days | tojson }}</script>
+    <script type="application/json" id="tt-info">{{ (timetable_info or {}) | tojson }}</script>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (function(){
+        // Parse embedded JSON so the JS stays valid before Jinja rendering
+        function parseJsonScript(id){
+            const el = document.getElementById(id);
+            if (!el) return null;
+            try { return JSON.parse(el.textContent || 'null'); } catch(e) { return null; }
+        }
+        const initial = parseJsonScript('tt-data') || [];
+        let timetable = Array.isArray(initial) ? initial.slice() : [];
+
+        const days = parseJsonScript('tt-days') || ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+        const startHour = 6, endHour = 22; // inclusive grid hours
+
+        const $grid = $('#grid');
+        const $error = $('#error-box');
+        
+        // Load saved study info into form
+        const savedInfo = parseJsonScript('tt-info') || {};
+        if (savedInfo.subjects) $('#info-subjects').val(savedInfo.subjects);
+        if (savedInfo.exams) $('#info-exams').val(savedInfo.exams);
+        if (savedInfo.focus_areas) $('#info-focus').val(savedInfo.focus_areas);
+        if (savedInfo.study_goals) $('#info-goals').val(savedInfo.study_goals);
+        
+        // Toggle collapse icon
+        $('#study-info-collapse').on('show.bs.collapse', function(){
+            $('#study-info-icon').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+        }).on('hide.bs.collapse', function(){
+            $('#study-info-icon').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+        });
+        
+        // Save study info form
+        $('#study-info-form').on('submit', function(e){
+            e.preventDefault();
+            const payload = {
+                subjects: $('#info-subjects').val().trim(),
+                exams: $('#info-exams').val().trim(),
+                focus_areas: $('#info-focus').val().trim(),
+                study_goals: $('#info-goals').val().trim()
+            };
+            $.ajax({ url: '/timetable/save-info', method: 'POST', contentType: 'application/json', data: JSON.stringify(payload) })
+              .done(res => {
+                $('#info-saved').fadeIn().delay(2000).fadeOut();
+              })
+              .fail(xhr => { try { showError((JSON.parse(xhr.responseText)||{}).error||'Error saving info'); } catch(_){ showError('Error saving info'); } });
+        });
+
+        function clearEvents() {
+            $grid.find('.tt-event').remove();
+        }
+
+        function minutesSinceStart(t) {
+            const [H,M] = t.split(':').map(Number);
+            return (H - startHour) * 60 + M;
+        }
+
+        function renderEvents() {
+            clearEvents();
+            const cellHeight = $grid.find('.tt-cell[data-day][data-hour]').first().outerHeight() || 44;
+            timetable.forEach(ev => {
+                const day = ev.day; const s = ev.start; const e = ev.end;
+                const colCells = $grid.find(`.tt-cell[data-day='${day}']`);
+                if (!colCells.length) return;
+                const totalMinutes = (endHour - startHour + 1) * 60; // grid is hourly rows including 22:00 row
+                const top = (minutesSinceStart(s) / 60) * cellHeight;
+                const height = Math.max(24, ((minutesSinceStart(e) - minutesSinceStart(s)) / 60) * cellHeight - 4);
+                const $firstCell = $(colCells.get(0));
+                const $event = $(`<div class='tt-event ${ev.type || 'class'}'>
+                    <span class='del' title='Delete' data-id='${ev.id}'><i class="fas fa-times"></i></span>
+                    <div class='title'>${ev.title || ''}</div>
+                    <div class='time'>${s} - ${e}</div>
+                </div>`);
+                $event.attr('title', `${ev.title || ''} • ${s} - ${e}`);
+                $event.css({ top: `${top + 2}px`, height: `${height}px` });
+                // If the event is too short vertically, prioritize showing title only
+                if (height < 32) {
+                    $event.find('.time').hide();
+                }
+                // append into the first cell of the day column (absolute relative to cell stack)
+                $firstCell.append($event);
+            });
+        }
+
+        function showError(msg){ $error.text(msg).show(); setTimeout(()=> $error.hide(), 4000); }
+
+        function refresh(data){ if (data && data.timetable) timetable = data.timetable; renderEvents(); window.I18N && I18N.apply(); }
+
+        // Initialize grid render
+        renderEvents();
+
+        // Add event handler
+        $('#event-form').on('submit', function(e){
+            e.preventDefault();
+            const payload = {
+                title: $('#event-title').val().trim(),
+                type: $('#event-type').val(),
+                day: $('#event-day').val(),
+                start: $('#event-start').val(),
+                end: $('#event-end').val()
+            };
+            if (!payload.title || !payload.start || !payload.end) { showError('Please fill all fields'); return; }
+            $.ajax({ url: '/timetable/add', method: 'POST', contentType: 'application/json', data: JSON.stringify(payload) })
+              .done(res => { 
+                refresh(res);
+                $('#event-form')[0].reset();
+              })
+              .fail(xhr => { try { showError((JSON.parse(xhr.responseText)||{}).error||'Error'); } catch(_){ showError('Error'); } });
+        });
+
+        // Delete event (stop propagation to prevent edit)
+        $grid.on('click', '.tt-event .del', function(e){
+            e.stopPropagation();
+            const id = $(this).data('id');
+            if (!confirm('Delete this event?')) return;
+            $.ajax({ url: '/timetable/delete', method: 'POST', contentType: 'application/json', data: JSON.stringify({ id }) })
+              .done(res => { refresh(res); })
+              .fail(xhr => { try { showError((JSON.parse(xhr.responseText)||{}).error||'Error'); } catch(_){ showError('Error'); } });
+        });
+        
+        // Click on event to edit
+        $grid.on('click', '.tt-event', function(e){
+            if ($(e.target).hasClass('del') || $(e.target).closest('.del').length) return;
+            const id = $(this).find('.del').data('id');
+            const event = timetable.find(ev => ev.id === id);
+            if (!event) return;
+            
+            $('#edit-event-id').val(event.id);
+            $('#edit-event-title').val(event.title);
+            $('#edit-event-type').val(event.type || 'class');
+            $('#edit-event-day').val(event.day);
+            $('#edit-event-start').val(event.start);
+            $('#edit-event-end').val(event.end);
+            
+            const modalEl = document.getElementById('edit-event-modal');
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl, {
+                backdrop: true,
+                keyboard: true,
+                focus: true
+            });
+            
+            modal.show();
+            
+            // Focus on first input after modal shows
+            modalEl.addEventListener('shown.bs.modal', function(){
+                $('#edit-event-title').focus();
+                // Ensure modal is in viewport
+                const rect = modalEl.getBoundingClientRect();
+                if (rect.top < 0) {
+                    window.scrollTo({ top: window.scrollY + rect.top - 20, behavior: 'smooth' });
+                }
+            }, { once: true });
+        });
+        
+        // Save edit
+        $('#save-edit-btn').on('click', function(){
+            const payload = {
+                id: $('#edit-event-id').val(),
+                title: $('#edit-event-title').val().trim(),
+                type: $('#edit-event-type').val(),
+                day: $('#edit-event-day').val(),
+                start: $('#edit-event-start').val(),
+                end: $('#edit-event-end').val()
+            };
+            if (!payload.title || !payload.start || !payload.end) { showError('Please fill all fields'); return; }
+            $.ajax({ url: '/timetable/update', method: 'POST', contentType: 'application/json', data: JSON.stringify(payload) })
+              .done(res => { 
+                refresh(res);
+                bootstrap.Modal.getInstance(document.getElementById('edit-event-modal')).hide();
+              })
+              .fail(xhr => { try { showError((JSON.parse(xhr.responseText)||{}).error||'Error'); } catch(_){ showError('Error'); } });
+        });
+        
+        // Click on empty cell to add event
+        $grid.on('click', '.tt-cell[data-day][data-hour]', function(e){
+            // Don't trigger if clicking on an event
+            if ($(e.target).closest('.tt-event').length) return;
+            
+            const day = $(this).data('day');
+            const hour = $(this).data('hour');
+            const [h, m] = hour.split(':').map(Number);
+            const startTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+            const endHour = h + 1;
+            const endTime = `${String(endHour > 22 ? 22 : endHour).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+            
+            $('#quick-add-day').val(day);
+            $('#quick-add-start').val(startTime);
+            $('#quick-add-end').val(endTime);
+            $('#quick-add-title').val('');
+            $('#quick-add-type').val('class');
+            
+            const modalEl = document.getElementById('add-event-modal');
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl, {
+                backdrop: true,
+                keyboard: true,
+                focus: true
+            });
+            
+            modal.show();
+            
+            // Focus on first input after modal shows
+            modalEl.addEventListener('shown.bs.modal', function(){
+                $('#quick-add-title').focus();
+                // Ensure modal is in viewport
+                const rect = modalEl.getBoundingClientRect();
+                if (rect.top < 0) {
+                    window.scrollTo({ top: window.scrollY + rect.top - 20, behavior: 'smooth' });
+                }
+            }, { once: true });
+        });
+        
+        // Save quick add
+        $('#save-quick-add-btn').on('click', function(){
+            const payload = {
+                title: $('#quick-add-title').val().trim(),
+                type: $('#quick-add-type').val(),
+                day: $('#quick-add-day').val(),
+                start: $('#quick-add-start').val(),
+                end: $('#quick-add-end').val()
+            };
+            if (!payload.title || !payload.start || !payload.end) { showError('Please fill all fields'); return; }
+            $.ajax({ url: '/timetable/add', method: 'POST', contentType: 'application/json', data: JSON.stringify(payload) })
+              .done(res => { 
+                refresh(res);
+                bootstrap.Modal.getInstance(document.getElementById('add-event-modal')).hide();
+              })
+              .fail(xhr => { try { showError((JSON.parse(xhr.responseText)||{}).error||'Error'); } catch(_){ showError('Error'); } });
+        });
+
+        // AI suggest
+        $('#ai-suggest').on('click', function(){
+            const $btn = $(this); const old = $btn.prop('disabled', true).html();
+            $btn.html('<span class="spinner-border spinner-border-sm me-2"></span>'+ (window.I18N? I18N.get('common.processing','Processing...'):'Processing...'));
+            $.ajax({ url: '/timetable/ai-plan', method: 'POST' })
+              .done(list => {
+                const $wrap = $('#ai-suggestions');
+                const $body = $('#suggestions-body').empty();
+                if (!Array.isArray(list) || list.length === 0) { $wrap.hide(); return; }
+                list.forEach(s => {
+                    const $card = $(`<div class='card mb-2 suggestion'>
+                        <div class='card-body d-flex justify-content-between align-items-center'>
+                            <div>
+                                <div><strong>${s.day}</strong> • ${s.start} - ${s.end}</div>
+                                <div class='text-muted'>${s.task}</div>
+                            </div>
+                            <button class='btn btn-sm btn-outline-success add-suggestion'>Add</button>
+                        </div>
+                    </div>`);
+                    $card.data('sug', s);
+                    $body.append($card);
+                });
+                $wrap.show();
+              })
+              .fail(() => { showError('Failed to generate suggestions'); })
+              .always(() => { $btn.prop('disabled', false).html(old); });
+        });
+
+        // Add suggestion as self-study event
+        $('#suggestions-body').on('click', '.add-suggestion', function(){
+            const s = $(this).closest('.card').data('sug');
+            const payload = { title: s.task, type: 'self-study', day: s.day, start: s.start, end: s.end };
+            $.ajax({ url: '/timetable/add', method: 'POST', contentType: 'application/json', data: JSON.stringify(payload) })
+              .done(res => { refresh(res); })
+              .fail(xhr => { try { showError((JSON.parse(xhr.responseText)||{}).error||'Error'); } catch(_){ showError('Error'); } });
+        });
+
+        // Import from JSON file
+        $('#import-file').on('change', function(e){
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(){
+                try {
+                    const text = String(reader.result || '');
+                    const parsed = JSON.parse(text);
+                    $.ajax({ url: '/timetable/import', method: 'POST', contentType: 'application/json', data: JSON.stringify(parsed) })
+                      .done(res => { 
+                        refresh(res);
+                        // Load study_info if present in response
+                        if (res.study_info) {
+                            if (res.study_info.subjects) $('#info-subjects').val(res.study_info.subjects);
+                            if (res.study_info.exams) $('#info-exams').val(res.study_info.exams);
+                            if (res.study_info.focus_areas) $('#info-focus').val(res.study_info.focus_areas);
+                            if (res.study_info.study_goals) $('#info-goals').val(res.study_info.study_goals);
+                            $('#info-saved').fadeIn().delay(2000).fadeOut();
+                        }
+                      })
+                      .fail(xhr => { try { showError((JSON.parse(xhr.responseText)||{}).error||'Import failed'); } catch(_){ showError('Import failed'); } });
+                } catch(err){ showError('Invalid JSON file'); }
+                finally { $('#import-file').val(''); }
+            };
+            reader.readAsText(file);
+        });
+
+        // Clear all events
+        $('#clear-all').on('click', function(){
+            if (!confirm('Are you sure you want to clear all events from the timetable?')) return;
+            $.ajax({ url: '/timetable/clear', method: 'POST' })
+              .done(res => { refresh(res); })
+              .fail(xhr => { try { showError((JSON.parse(xhr.responseText)||{}).error||'Error clearing timetable'); } catch(_){ showError('Error clearing timetable'); } });
+        });
+    })();
+</script>
+{% endblock %}
+
+

@@ -1,0 +1,646 @@
+{% extends 'base.html' %}
+
+{% block title %}Quiz Generator{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Quiz question styling */
+    .quiz-question {
+        border-left: 4px solid #6c757d;
+        transition: all 0.2s ease;
+    }
+    
+    .quiz-question:hover {
+        border-left-color: #0d6efd;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    /* Quiz options styling */
+    .quiz-options .form-check {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--card-border);
+        background-color: transparent;
+        transition: background-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        will-change: transform, box-shadow;
+        cursor: pointer;
+        margin-bottom: 10px;
+    }
+    .quiz-options .form-check:hover,
+    .quiz-options .form-check:focus-within {
+        background-color: rgba(13,110,253,0.06);
+        transform: translateY(-2px);
+        border-color: rgba(13,110,253,0.5);
+        box-shadow: 0 10px 18px rgba(0,0,0,0.12);
+    }
+    /* Keep selected option visually hovered/highlighted */
+    .quiz-options .form-check.selected,
+    .quiz-options .form-check:has(.form-check-input:checked) {
+        background-color: rgba(13,110,253,0.06);
+        transform: translateY(-2px);
+        border-color: rgba(13,110,253,0.5);
+        box-shadow: 0 10px 18px rgba(0,0,0,0.12);
+    }
+    .quiz-options .form-check-input {
+        margin: 0 2px 0 2px;
+        width: 1.1rem;
+        height: 1.1rem;
+        flex: 0 0 auto;
+    }
+    .quiz-options .form-check-label {
+        margin: 0;
+        padding: 0;
+        flex: 1 1 auto;
+        position: relative;
+        display: block;
+    }
+    /* Provide room for the checkmark indicator */
+    .quiz-options .form-check-label { padding-right: 24px; }
+    .quiz-options .form-check-input:checked + .form-check-label::after {
+        content: '✓';
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--primary);
+        font-weight: 800;
+    }
+    
+    .quiz-options .form-check-input:checked + .form-check-label {
+        font-weight: 600;
+    }
+    
+    /* Answer feedback styling */
+    .correct-answer {
+        color: #198754;
+        font-weight: bold;
+    }
+    
+    .incorrect-answer {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    
+    .quiz-explanation {
+        margin-top: 15px;
+        padding: 10px;
+        background-color: rgba(108,117,125,0.08);
+        border-left: 4px solid #6c757d;
+        font-style: italic;
+        border-radius: 8px;
+    }
+    
+    /* Form element improvements */
+    .form-control:focus, .form-select:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    
+    /* Button styling */
+    .btn-primary {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+    
+    .btn-primary:hover {
+        background-color: #0b5ed7;
+        border-color: #0a58ca;
+    }
+    
+    .btn-success {
+        background-color: #198754;
+        border-color: #198754;
+    }
+
+    /* Dark mode adjustments */
+    .dark-theme #quiz-container .card,
+    .dark-theme #results-container .card { background-color: var(--card-bg); }
+    .dark-theme .quiz-question .card-header { background-color: rgba(255,255,255,0.06) !important; color: var(--text); }
+    .dark-theme .quiz-options .form-check { background-color: transparent; }
+    .dark-theme .quiz-options .form-check:hover,
+    .dark-theme .quiz-options .form-check:focus-within {
+        background-color: rgba(255,255,255,0.06);
+        box-shadow: 0 14px 28px rgba(0,0,0,0.35);
+    }
+    /* Dark mode: persist highlight on selected */
+    .dark-theme .quiz-options .form-check.selected,
+    .dark-theme .quiz-options .form-check:has(.form-check-input:checked) {
+        background-color: rgba(255,255,255,0.06);
+        box-shadow: 0 14px 28px rgba(0,0,0,0.35);
+        border-color: rgba(255,255,255,0.25);
+    }
+    .dark-theme .quiz-options .form-check-input:checked + .form-check-label { color: var(--text); }
+    .dark-theme .progress { background-color: rgba(255,255,255,0.06); }
+    
+    .btn-success:hover {
+        background-color: #157347;
+        border-color: #146c43;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+<h1 class="mb-4 section-heading" data-i18n="quiz.title">Quiz Generator</h1>
+    
+    <!-- Alert for error messages -->
+    <div id="error-message" class="alert alert-danger mb-4" style="display: none;"></div>
+    
+    <!-- Quiz generator form -->
+    <div class="card mb-5">
+        <div class="card-header bg-primary text-white">
+            <h2 class="h5 mb-0" data-i18n="quiz.generate">Generate a Quiz</h2>
+        </div>
+        <div class="card-body">
+            <form id="quiz-generator-form">
+                <!-- Quiz options -->
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3">
+                        <label for="quiz-difficulty" class="form-label" data-i18n="quiz.difficulty">Difficulty</label>
+                        <select id="quiz-difficulty" class="form-select">
+                            <option value="easy" data-i18n="quiz.diff_easy">Easy (5 questions)</option>
+                            <option value="medium" selected data-i18n="quiz.diff_medium">Medium (7 questions)</option>
+                            <option value="hard" data-i18n="quiz.diff_hard">Hard (10 questions)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="quiz-type" class="form-label" data-i18n="quiz.question_type">Question Type</label>
+                        <select id="quiz-type" class="form-select">
+                            <option value="mcq" data-i18n="quiz.type_mcq">Multiple Choice</option>
+                            <option value="tf" data-i18n="quiz.type_tf">True/False</option>
+                            <option value="both" selected data-i18n="quiz.type_both">Both</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Text input section -->
+                <div id="text-container">
+                    <div class="mb-3">
+                        <label for="quiz-text" class="form-label" data-i18n="quiz.text_content">Text Content</label>
+                        <textarea id="quiz-text" class="form-control" rows="8" placeholder="Paste text content here for generating quiz questions..." data-i18n-placeholder="quiz.text_placeholder"></textarea>
+                    </div>
+                </div>
+                
+                <!-- Form buttons -->
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" id="clear-form-btn" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-2"></i><span data-i18n="common.clear_form">Clear Form</span>
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-magic me-2"></i><span data-i18n="quiz.generate_btn">Generate Quiz</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Loading indicator -->
+    <div id="loading-indicator" class="text-center py-5" style="display: none;">
+        <div class="spinner-border text-primary mb-3" role="status">
+            <span class="visually-hidden" data-i18n="common.loading">Loading...</span>
+        </div>
+        <p id="status-message" class="text-muted" data-i18n="common.processing">Processing...</p>
+    </div>
+    
+    <!-- Quiz container -->
+    <div id="quiz-container" class="mb-5" style="display: none;">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h4 mb-0" data-i18n="quiz.quiz_header">Quiz</h2>
+            </div>
+            <div class="card-body">
+                
+                
+                <form id="quiz-form">
+                    <!-- Questions will be inserted here -->
+                    <div id="questions-container"></div>
+                    
+                    <!-- Submit button -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" id="reset-quiz-btn" class="btn btn-outline-secondary">
+                            <i class="fas fa-redo me-2"></i><span data-i18n="quiz.new_quiz">New Quiz</span>
+                        </button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-check me-2"></i><span data-i18n="quiz.submit_answers">Submit Answers</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Results container -->
+    <div id="results-container" class="mb-5" style="display: none;">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h4 mb-0" data-i18n="quiz.results_header">Quiz Results</h2>
+            </div>
+            <div class="card-body">
+                <!-- Score display -->
+                <div class="mb-4">
+                    <h3 class="h5 mb-3" data-i18n="quiz.your_score">Your Score</h3>
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="h3 mb-0 me-3">
+                            <span id="score">0</span> / <span id="total">0</span>
+                        </div>
+                    </div>
+                    <div class="progress" style="height: 30px;">
+                        <div id="score-bar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                    </div>
+                </div>
+                
+                <!-- Results breakdown -->
+                <div id="results-breakdown"></div>
+                
+                <!-- Generate new quiz button -->
+                <div class="mt-4">
+                    <button type="button" id="new-quiz-btn" class="btn btn-primary">
+                        <i class="fas fa-redo me-2"></i><span data-i18n="quiz.generate_another">Generate Another Quiz</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        console.log("Quiz page loaded");
+        
+        // Global variables
+        let currentQuizData = null;
+        
+        // Form submission handler
+        $('#quiz-generator-form').submit(function(e) {
+            e.preventDefault();
+            
+            // Hide any previous error message
+            $('#error-message').hide();
+            
+            // Text input validation
+            const textContent = $('#quiz-text').val().trim();
+            if (!textContent) {
+                showError('Please enter text content for the quiz.');
+                return;
+            }
+            
+            // Check minimum content length
+            if (textContent.length < 100) {
+                showError(`
+                    <div class="alert-heading h5 mb-2">Content Too Short</div>
+                    <p>The provided content is too short to generate meaningful quiz questions. Please:</p>
+                    <ul>
+                        <li>Add more substantial text content (at least 100 characters)</li>
+                        <li>Ensure your content contains educational material</li>
+                    </ul>
+                `);
+                return;
+            }
+            
+            // Get other form values
+            const difficulty = $('#quiz-difficulty').val();
+            const questionType = $('#quiz-type').val();
+            
+            // Show loading indicator
+            $('#loading-indicator').show();
+            $('#status-message').text('Generating your quiz...');
+            
+            // Submit request to generate quiz
+            $.ajax({
+                url: '/generate-quiz',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    text: textContent,
+                    difficulty: difficulty,
+                    question_type: questionType
+                }),
+                success: handleQuizGenerationSuccess,
+                error: handleAjaxError
+            });
+        });
+        
+        // Quiz submission handler
+        $('#quiz-form').submit(function(e) {
+            e.preventDefault();
+            
+            if (!currentQuizData || !currentQuizData.questions) {
+                alert('No quiz data available. Please generate a quiz first.');
+                return;
+            }
+            
+            // Collect answers
+            const answers = {};
+            let answeredCount = 0;
+            const totalQuestions = currentQuizData.questions.length;
+            
+            // Loop through questions
+            currentQuizData.questions.forEach(function(_, index) {
+                const selected = $(`input[name="question_${index}"]:checked`).val();
+                if (selected) {
+                    answers[index] = selected;
+                    answeredCount++;
+                }
+            });
+            
+            // Check if all questions are answered
+            if (answeredCount < totalQuestions) {
+                alert(`Please answer all questions. You have ${totalQuestions - answeredCount} unanswered question(s).`);
+                return;
+            }
+            
+            // Show loading
+            $('#loading-indicator').show();
+            $('#status-message').text('Checking your answers...');
+            
+            // Submit answers
+            $.ajax({
+                url: '/submit-quiz',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ answers: answers }),
+                success: function(result) {
+                    $('#loading-indicator').hide();
+                    
+                    if (result.error) {
+                        showError(result.error);
+                        return;
+                    }
+                    
+                    displayResults(result);
+                },
+                error: handleAjaxError
+            });
+        });
+        
+        // Reset button handlers
+        $('#reset-quiz-btn, #new-quiz-btn').click(function() {
+            resetQuiz();
+        });
+        
+        // Clear form button handler
+        $('#clear-form-btn').click(function() {
+            clearForm();
+        });
+        
+        // Helper function to show errors
+        function showError(message) {
+            $('#error-message').html(message).show();
+            $('html, body').animate({
+                scrollTop: $('#error-message').offset().top - 70
+            }, 300);
+        }
+        
+        // Handle successful quiz generation
+        function handleQuizGenerationSuccess(data) {
+            $('#loading-indicator').hide();
+            
+            if (data.error) {
+                // Add special handling for content too short error
+                if (data.error.includes("too short")) {
+                    showError(`
+                        <div class="alert-heading h5 mb-2">Content Too Short</div>
+                        <p>The provided content is too short to generate meaningful quiz questions. Please:</p>
+                        <ul>
+                            <li>Add more substantial text content (at least 100 characters)</li>
+                            <li>Ensure your content contains educational material</li>
+                        </ul>
+                    `);
+                } else {
+                    showError(data.error);
+                }
+                return;
+            }
+            
+            // Store quiz data
+            currentQuizData = data;
+            
+            // Display quiz
+            displayQuiz(data);
+        }
+        
+        // Handle AJAX errors
+        function handleAjaxError(xhr, status, error) {
+            $('#loading-indicator').hide();
+            console.error('AJAX error:', status, error);
+            console.error('Response:', xhr.responseText);
+            
+            try {
+                const errorData = JSON.parse(xhr.responseText);
+                showError(errorData.error || `An error occurred: ${error}`);
+            } catch (e) {
+                showError(`An error occurred: ${error}`);
+            }
+        }
+        
+        // Display quiz questions
+        function displayQuiz(quizData) {
+            console.log('Displaying quiz:', quizData);
+            
+            // Validate quiz data
+            if (!quizData || !quizData.questions || !Array.isArray(quizData.questions) || quizData.questions.length === 0) {
+                showError('Invalid quiz data received.');
+                return;
+            }
+            
+            
+            
+            // Generate quiz HTML
+            let questionsHtml = '';
+            
+            // Loop through questions
+            quizData.questions.forEach(function(question, index) {
+                if (!question.question || !question.choices) {
+                    console.error('Invalid question format:', question);
+                    return;
+                }
+                
+                const questionId = `question_${index}`;
+                
+                questionsHtml += `
+                    <div class="card mb-4 quiz-question">
+                        <div class="card-header bg-light">
+                            <strong>Question ${index + 1}:</strong> ${question.question}
+                        </div>
+                        <div class="card-body">
+                            <div class="quiz-options">
+                `;
+                
+                // Add choices based on type
+                if (Array.isArray(question.choices)) {
+                    // Multiple choice questions
+                    question.choices.forEach(function(choice, choiceIndex) {
+                        questionsHtml += `
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="${questionId}" id="${questionId}_${choiceIndex}" value="${choice}">
+                                <label class="form-check-label" for="${questionId}_${choiceIndex}">${choice}</label>
+                            </div>
+                        `;
+                    });
+                } else if (question.choices === 'True/False' || (Array.isArray(question.choices) && question.choices.length === 2 && 
+                          question.choices.includes('True') && question.choices.includes('False'))) {
+                    // True/False questions
+                    questionsHtml += `
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="${questionId}" id="${questionId}_true" value="True">
+                            <label class="form-check-label" for="${questionId}_true">True</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="${questionId}" id="${questionId}_false" value="False">
+                            <label class="form-check-label" for="${questionId}_false">False</label>
+                        </div>
+                    `;
+                }
+                
+                questionsHtml += `
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // Add questions to container
+            $('#questions-container').html(questionsHtml);
+            
+            // Initialize selected state for any pre-checked inputs
+            $('#questions-container .form-check-input:checked').each(function() {
+                $(this).closest('.form-check').addClass('selected');
+            });
+
+            // Show quiz container
+            $('#quiz-container').show();
+            
+            // Scroll to quiz
+            $('html, body').animate({
+                scrollTop: $('#quiz-container').offset().top - 70
+            }, 500);
+        }
+        
+        // Display quiz results
+        function displayResults(results) {
+            // Update score display
+            $('#score').text(results.score || 0);
+            $('#total').text(results.total || 0);
+            
+            // Calculate percentage (rounded to 2 decimals)
+            const rawPercent = (typeof results.percentage === 'number')
+                ? results.percentage
+                : ((results.total ? (results.score / results.total) * 100 : 0));
+            const percentage = Number((isFinite(rawPercent) ? rawPercent : 0).toFixed(2));
+            $('#score-bar')
+                .css('width', `${percentage}%`)
+                .attr('aria-valuenow', percentage)
+                .text(`${percentage.toFixed(2)}%`);
+            
+            // Generate feedback HTML
+            let feedbackHtml = '';
+            
+            if (results.feedback && results.feedback.length > 0) {
+                feedbackHtml = '<h4 class="mt-4 mb-3">Question Breakdown</h4>';
+                
+                results.feedback.forEach(function(item, index) {
+                    const isCorrect = item.is_correct || false;
+                    const statusClass = isCorrect ? 'bg-success' : 'bg-danger';
+                    const iconClass = isCorrect ? 'check-circle' : 'times-circle';
+                    
+                    feedbackHtml += `
+                        <div class="card mb-3">
+                            <div class="card-header ${statusClass} text-white">
+                                <i class="fas fa-${iconClass} me-2"></i>
+                                Question ${index + 1}
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Question:</strong> ${item.question || 'Not available'}</p>
+                                <p><strong>Your Answer:</strong> <span class="${isCorrect ? 'correct-answer' : 'incorrect-answer'}">${item.user_answer || 'Not provided'}</span></p>
+                                
+                                ${!isCorrect ? `<p><strong>Correct Answer:</strong> ${item.correct_answer || 'Not available'}</p>` : ''}
+                                
+                                <div class="quiz-explanation">
+                                    <strong>Explanation:</strong> ${item.explanation || 'No explanation available.'}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                feedbackHtml = '<div class="alert alert-warning">No detailed feedback available.</div>';
+            }
+            
+            // Update results breakdown
+            $('#results-breakdown').html(feedbackHtml);
+            
+            // Show results container
+            $('#results-container').show();
+            
+            // Scroll to results
+            $('html, body').animate({
+                scrollTop: $('#results-container').offset().top - 70
+            }, 500);
+        }
+        
+        // Reset quiz
+        function resetQuiz() {
+            // Clear data
+            currentQuizData = null;
+            
+            // Hide quiz and results
+            $('#quiz-container').hide();
+            $('#results-container').hide();
+            
+            // Reset to form section
+            $('html, body').animate({
+                scrollTop: $('#quiz-generator-form').offset().top - 70
+            }, 300);
+            
+            // Call server to reset session
+            $.post('/reset-quiz', function(response) {
+                console.log('Quiz reset:', response);
+            });
+        }
+        
+        // Clear form
+        function clearForm() {
+            // Reset form fields
+            $('#quiz-text').val('');
+            $('#quiz-difficulty').val('medium');
+            $('#quiz-type').val('both');
+            
+            // Hide error messages
+            $('#error-message').hide();
+            
+            // Reset quiz
+            resetQuiz();
+        }
+        
+        // Initialize the form
+        clearForm();
+
+        // Make entire option clickable and persist highlight on selection
+        const $questionsContainer = $('#questions-container');
+
+        // Delegated click: clicking anywhere on the option selects the radio
+        $questionsContainer.on('click', '.quiz-options .form-check', function(e) {
+            // If the actual input was clicked, let default behavior run
+            if ($(e.target).is('input, label')) return;
+            const $input = $(this).find('.form-check-input');
+            if ($input.length) {
+                $input.prop('checked', true).trigger('change');
+            }
+        });
+
+        // On change, apply .selected to the chosen option and remove from siblings in the same group
+        $questionsContainer.on('change', '.quiz-options .form-check-input', function() {
+            const $input = $(this);
+            const groupName = $input.attr('name');
+            const $groupOptions = $(`input[name="${groupName}"]`).closest('.form-check');
+            $groupOptions.removeClass('selected');
+            $input.closest('.form-check').addClass('selected');
+        });
+    });
+</script>
+{% endblock %}

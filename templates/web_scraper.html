@@ -1,0 +1,575 @@
+{% extends 'base.html' %}
+
+{% block title %}Web Scraper - EduSmartBot{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-result {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .search-result:hover {
+        background-color: rgba(13, 110, 253, 0.1);
+        transform: translateY(-2px);
+    }
+    
+    .content-box {
+        max-height: 500px;
+        overflow-y: auto;
+        background-color: var(--card-bg);
+        border-radius: 12px;
+        padding: 15px;
+        border: 1px solid var(--card-border);
+        font-size: 15px;
+        line-height: 1.6;
+    }
+    
+    .content-box h2 {
+        font-size: 1.4em;
+        margin-top: 1em;
+        margin-bottom: 0.5em;
+        color: #0d6efd;
+    }
+    
+    .content-box p {
+        margin-bottom: 0.8em;
+    }
+    
+    .content-box ul, .content-box ol {
+        margin-bottom: 1em;
+        padding-left: 1.5em;
+    }
+    
+    .answer-box {
+        background-color: rgba(13,110,253,0.12);
+        border-left: 4px solid #0d6efd;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+    .answer-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+    .source-card { border: 1px solid var(--card-border); border-radius: 10px; padding: 10px; margin-bottom: 10px; background: var(--card-bg); }
+    .source-card .title { font-weight: 600; }
+    .source-card .meta { font-size: 12px; color: #6c757d; }
+    
+    .loader {
+        display: none;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #0d6efd;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 2s linear infinite;
+        margin: 20px auto;
+    }
+    
+    .scrape-progress {
+        display: none;
+        margin: 20px 0;
+        padding: 10px;
+        background-color: rgba(13,110,253,0.08);
+        border-radius: 12px;
+        text-align: center;
+    }
+    
+    .content-stats {
+        margin-top: 10px;
+        font-size: 0.9em;
+        color: #666;
+        text-align: right;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1 class="mb-3 section-heading">
+            <i class="fas fa-globe text-primary me-2"></i>
+            <span data-i18n="ws.title">Educational Web Scraper</span>
+        </h1>
+        <p class="lead section-subtitle" data-i18n="ws.subtitle">Search, scrape and analyze educational content with AI assistance</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-search me-2"></i><span data-i18n="ws.search_card">Search Educational Content</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="search-form">
+                    <div class="input-group mb-3">
+                        <input type="text" id="search-query" class="form-control" placeholder="Enter your educational search query..." data-i18n-placeholder="ws.search_placeholder">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search me-1"></i> <span data-i18n="common.search">Search</span>
+                        </button>
+                        <button class="btn btn-outline-primary ms-2" type="button" id="intelligent-search-btn" title="AI answer with citations">
+                            <i class="fas fa-magic me-1"></i> <span>AI Answer</span>
+                        </button>
+                        <button class="btn btn-outline-secondary ms-2" type="button" id="reset-button">
+                            <i class="fas fa-undo me-1"></i> <span data-i18n="common.reset">Reset</span>
+                        </button>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="include-images-toggle-search">
+                        <label class="form-check-label" for="include-images-toggle-search">
+                            <i class="fas fa-image me-1"></i>
+                            <span data-i18n="ws.include_images">Include image OCR/analysis</span>
+                        </label>
+                    </div>
+                </form>
+                <div id="search-loader" class="loader"></div>
+                <div id="intelligent-loader" class="loader"></div>
+                <div id="intelligent-answer" class="answer-box" style="display:none;"></div>
+                <div class="answer-toolbar" id="answer-toolbar" style="display:none;">
+                    <button class="btn btn-sm btn-outline-secondary" id="copy-answer-btn"><i class="fas fa-copy me-1"></i>Copy Answer</button>
+                    <button class="btn btn-sm btn-outline-secondary" id="toggle-sources-btn"><i class="fas fa-list me-1"></i>Toggle Sources</button>
+                </div>
+                <div id="intelligent-sources" class="mt-2" style="display:none;"></div>
+                <div id="search-results" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4" id="content-card" style="display:none;">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-file-alt me-2"></i><span data-i18n="ocr.extracted_content">Extracted Content</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mb-1" id="content-url"></h6>
+                <div id="scrape-progress" class="scrape-progress">
+                    <i class="fas fa-sync fa-spin me-2"></i>
+                    <span id="scrape-status" data-i18n="ws.processing">Processing website content...</span>
+                </div>
+                <div class="content-box mb-3" id="scraped-content"></div>
+                <div class="content-stats" id="content-stats"></div>
+                
+                <div class="mt-4">
+                    <h5 data-i18n="ocr.ask_about_content">Ask a Question About This Content</h5>
+                    <form id="question-form">
+                        <div class="input-group mb-3">
+                            <input type="text" id="question-input" class="form-control" placeholder="What would you like to know about this content?" data-i18n-placeholder="ocr.question_placeholder">
+                            <button class="btn btn-success" type="submit" id="ask-button" disabled>
+                                <i class="fas fa-question-circle me-1"></i> <span data-i18n="ocr.ask_button">Ask</span>
+                            </button>
+                        </div>
+                    </form>
+                    <div id="question-loader" class="loader"></div>
+                    <div id="answer-container" class="answer-box" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row" id="direct-url-section">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-link me-2"></i><span data-i18n="ws.direct_url">Scrape Direct URL</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-2" data-i18n="ws.direct_desc">Know the exact webpage you want to scrape? Enter the URL below:</p>
+                <form id="direct-url-form">
+                    <div class="input-group mb-3">
+                        <input type="url" id="direct-url" class="form-control" placeholder="https://example.com/page" required>
+                        <button class="btn btn-info" type="submit">
+                            <i class="fas fa-download me-1"></i> <span data-i18n="ws.scrape_btn">Scrape</span>
+                        </button>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="include-images-toggle">
+                        <label class="form-check-label" for="include-images-toggle">
+                            <i class="fas fa-image me-1"></i>
+                            <span data-i18n="ws.include_images">Include image OCR/analysis</span>
+                        </label>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Reset UI on page load/refresh
+        resetUI();
+        
+        function resetUI() {
+            // Clear search query
+            $('#search-query').val('');
+            
+            // Clear search results
+            $('#search-results').html('');
+            $('#intelligent-answer').hide().html('');
+            $('#answer-toolbar').hide();
+            $('#intelligent-sources').hide().html('');
+            
+            // Hide content card and answer
+            $('#content-card').hide();
+            $('#answer-container').hide();
+            
+            // Clear content
+            $('#content-url').text('');
+            $('#scraped-content').html('');
+            $('#content-stats').html('');
+            $('#question-input').val('');
+            $('#direct-url').val('');
+            
+            // Hide loaders and progress indicators
+            $('#search-loader').hide();
+            $('#intelligent-loader').hide();
+            $('#question-loader').hide();
+            $('#scrape-progress').hide();
+            
+            // Disable ask button
+            $('#ask-button').prop('disabled', true);
+            // Sync toggles default
+            const def = false;
+            $('#include-images-toggle').prop('checked', def);
+            $('#include-images-toggle-search').prop('checked', def);
+        }
+        
+        // Reset button handler
+        $('#reset-button').on('click', function() {
+            resetUI();
+            $('#include-images-toggle').prop('checked', false);
+            $('#include-images-toggle-search').prop('checked', false);
+        });
+        
+        // Format content for better display
+        function formatContent(content) {
+            if (!content) return '';
+            
+            // Convert headings with markdown-style format to actual HTML headings
+            content = content.replace(/\n## (.+?)\n/g, '<h2>$1</h2>');
+            
+            // Convert bullet points to list items
+            let formattedContent = '';
+            let inList = false;
+            
+            content.split('\n').forEach(line => {
+                line = line.trim();
+                if (line.startsWith('- ')) {
+                    if (!inList) {
+                        formattedContent += '<ul>';
+                        inList = true;
+                    }
+                    formattedContent += '<li>' + line.substring(2) + '</li>';
+                } else {
+                    if (inList) {
+                        formattedContent += '</ul>';
+                        inList = false;
+                    }
+                    if (line) {
+                        formattedContent += '<p>' + line + '</p>';
+                    }
+                }
+            });
+            
+            if (inList) {
+                formattedContent += '</ul>';
+            }
+            
+            return formattedContent;
+        }
+        
+        // Search form submission
+        $('#search-form').submit(function(e) {
+            e.preventDefault();
+            const query = $('#search-query').val();
+            
+            if (!query) {
+                const msg = window.I18N ? I18N.get('ws.enter_query', 'Please enter a search query') : 'Please enter a search query';
+                if (window.ESBToast) ESBToast.warn(msg); else alert(msg);
+                return;
+            }
+            
+            $('#search-loader').show();
+            $('#intelligent-loader').hide();
+            $('#intelligent-answer').hide();
+            $('#intelligent-sources').hide();
+            $('#search-results').html('');
+            
+            // Hide previous content when starting a new search
+            $('#content-card').hide();
+            $('#answer-container').hide();
+            $('#answer-toolbar').hide();
+            
+            $.ajax({
+                url: '/search-web',
+                method: 'POST',
+                data: { 
+                    query: query,
+                    include_images: ($('#include-images-toggle').is(':checked') || $('#include-images-toggle-search').is(':checked'))
+                },
+                success: function(data) {
+                    $('#search-loader').hide();
+                    
+                    if (data.error) {
+                        $('#search-results').html(`<div class="alert alert-danger">${data.error}</div>`);
+                        return;
+                    }
+                    
+                    if (data.length === 0) {
+                        const noResults = window.I18N ? I18N.get('ws.no_results', 'No results found. Try a different search query.') : 'No results found. Try a different search query.';
+                        $('#search-results').html(`<div class="alert alert-info">${noResults}</div>`);
+                        return;
+                    }
+                    
+                    let resultsHtml = '<div class="list-group">';
+                    
+                    data.forEach(function(result) {
+                        const ui = (typeof result.uiSimilarity === 'number') ? result.uiSimilarity.toFixed(3) : (typeof result.similarity === 'number' ? result.similarity.toFixed(3) : null);
+                        const sim = ui ? `<span class="badge bg-secondary ms-2" title="raw ${result.similarity?.toFixed ? result.similarity.toFixed(3) : result.similarity}">sim ${ui}</span>` : '';
+                        const snippet = result.snippet ? `<div class="text-muted small mt-1">${$('<div>').text(result.snippet).html()}</div>` : '';
+                        resultsHtml += `
+                            <div class="list-group-item search-result" data-url="${result.url}">
+                                <h5 class="mb-1 d-flex align-items-center justify-content-between">
+                                    <span>${result.title}</span>
+                                    <span>${sim}</span>
+                                </h5>
+                                <small class="text-muted">${result.url}</small>
+                                ${snippet}
+                            </div>
+                        `;
+                    });
+                    
+                    resultsHtml += '</div>';
+                    $('#search-results').html(resultsHtml);
+                    
+                    // Handle result click
+                    $('.search-result').click(function() {
+                        const url = $(this).data('url');
+                        scrapeWebsite(url);
+                    });
+                },
+                error: function() {
+                    $('#search-loader').hide();
+                    const err = window.I18N ? I18N.get('ws.search_error', 'An error occurred while searching. Please try again.') : 'An error occurred while searching. Please try again.';
+                    if (window.ESBToast) ESBToast.error(err);
+                    $('#search-results').html(`<div class="alert alert-danger">${err}</div>`);
+                }
+            });
+        });
+
+        // Intelligent search (AI Answer with citations)
+        $('#intelligent-search-btn').on('click', function() {
+            const query = $('#search-query').val();
+            if (!query) {
+                const msg = window.I18N ? I18N.get('ws.enter_query', 'Please enter a search query') : 'Please enter a search query';
+                if (window.ESBToast) ESBToast.warn(msg); else alert(msg);
+                return;
+            }
+            $('#intelligent-loader').show();
+            $('#intelligent-answer').hide();
+            $('#answer-toolbar').hide();
+            $('#intelligent-sources').hide();
+            $.ajax({
+                url: '/intelligent-web-search',
+                method: 'POST',
+                data: { 
+                    query: query,
+                    include_images: ($('#include-images-toggle').is(':checked') || $('#include-images-toggle-search').is(':checked'))
+                },
+                success: function(data) {
+                    $('#intelligent-loader').hide();
+                    if (data.error) {
+                        const err = data.error;
+                        if (window.ESBToast) ESBToast.error(err); else alert(err);
+                        return;
+                    }
+                    const linkCitations = function(html) { return html.replace(/\[(\d+)\]/g, function(match, p1){ return `<a href="#src-${p1}">[${p1}]</a>`; }); };
+                    const ansHtml = linkCitations((data.answer || '').replace(/\n/g, '<br>'));
+                    $('#intelligent-answer').html(ansHtml).show();
+                    $('#answer-toolbar').show();
+                    // sources
+                    const sources = data.sources || [];
+                    if (sources.length) {
+                        let sHtml = '<div class="mt-2"><strong>Sources</strong><div class="mt-2">';
+                        sources.forEach(s => {
+                            const title = s.title || s.url;
+                            const url = s.url || '#';
+                            const ui = (typeof s.uiSimilarity === 'number') ? s.uiSimilarity.toFixed(3) : (typeof s.similarity === 'number' ? Number(s.similarity).toFixed(3) : null);
+                            const raw = (typeof s.similarity === 'number') ? Number(s.similarity).toFixed(3) : null;
+                            const llm = (typeof s.llmSimilarity === 'number') ? Number(s.llmSimilarity).toFixed(3) : null;
+                            const tooltip = ui ? `title="raw ${raw !== null ? raw : 'n/a'}${llm !== null ? `, llm ${llm}` : ''}"` : '';
+                            const sim = ui ? ` <span class="badge bg-secondary ms-1" ${tooltip}>sim ${ui}</span>` : '';
+                            const snippet = s.snippet ? `<div class="text-muted small mt-1">${$('<div>').text(s.snippet).html()}</div>` : '';
+                            sHtml += `
+                                <div class="source-card" id="src-${s.index}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="title">[${s.index}] <a href="${url}" target="_blank" rel="noopener noreferrer">${title}</a>${sim}</div>
+                                        <a class="btn btn-sm btn-outline-primary" href="${url}" target="_blank" rel="noopener noreferrer"><i class="fas fa-external-link-alt"></i></a>
+                                    </div>
+                                    ${snippet}
+                                    <div class="meta mt-1">${url}</div>
+                                </div>
+                            `;
+                        });
+                        sHtml += '</div></div>';
+                        $('#intelligent-sources').html(sHtml).show();
+                    } else {
+                        $('#intelligent-sources').hide().html('');
+                    }
+                },
+                error: function() {
+                    $('#intelligent-loader').hide();
+                    const err = window.I18N ? I18N.get('ws.search_error', 'An error occurred while searching. Please try again.') : 'An error occurred while searching. Please try again.';
+                    if (window.ESBToast) ESBToast.error(err); else alert(err);
+                }
+            });
+        });
+
+        // Copy answer button
+        $('#copy-answer-btn').on('click', function() {
+            const html = $('#intelligent-answer').html();
+            const tmp = $('<div>').html(html);
+            const text = tmp.text();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(function(){
+                    if (window.ESBToast) ESBToast.success('Answer copied');
+                }).catch(function(){
+                    if (window.ESBToast) ESBToast.warn('Copy failed');
+                });
+            }
+        });
+
+        // Toggle sources
+        $('#toggle-sources-btn').on('click', function(){
+            $('#intelligent-sources').toggle();
+        });
+        
+        // Direct URL form submission
+        $('#direct-url-form').submit(function(e) {
+            e.preventDefault();
+            const url = $('#direct-url').val();
+            
+            if (!url) {
+                const msg = window.I18N ? I18N.get('ws.enter_valid_url', 'Please enter a valid URL') : 'Please enter a valid URL';
+                if (window.ESBToast) ESBToast.warn(msg); else alert(msg);
+                return;
+            }
+            
+            scrapeWebsite(url);
+        });
+        
+        // Function to scrape website content
+        function scrapeWebsite(url) {
+            // Show content card with loading state
+            $('#content-card').show();
+            $('#content-url').text(url);
+            $('#scraped-content').html('');
+            $('#content-stats').html('');
+            $('#scrape-progress').show();
+            $('#scrape-status').text(window.I18N ? I18N.get('ws.processing', 'Processing website content...') : 'Processing website content...');
+            
+            // Scroll to content area
+            $('html, body').animate({
+                scrollTop: $('#content-card').offset().top - 70
+            }, 500);
+            
+            // Clear previous answers when scraping a new site
+            $('#answer-container').hide();
+            $('#question-input').val('');
+            $('#ask-button').prop('disabled', true);
+            
+            $.ajax({
+                url: '/scrape-website',
+                method: 'POST',
+                data: { url: url, include_images: ($('#include-images-toggle').is(':checked') || $('#include-images-toggle-search').is(':checked')) },
+                success: function(data) {
+                    $('#scrape-progress').hide();
+                    
+                    if (data.error) {
+                        $('#scraped-content').html(`<div class="alert alert-danger">${data.error}</div>`);
+                        if (window.ESBToast) ESBToast.error(data.error);
+                        return;
+                    }
+                    
+                    // Display the content
+                    const formattedContent = formatContent(data.content);
+                    $('#scraped-content').html(formattedContent);
+                    
+                    // Show content stats
+                    const wordCount = data.content.split(/\s+/).length;
+                    const charCount = data.content.length;
+                    $('#content-stats').html(`Word count: ${wordCount} | Character count: ${charCount}`);
+                    
+                    // Enable ask button
+                    $('#ask-button').prop('disabled', false);
+                },
+                error: function(xhr) {
+                    $('#scrape-progress').hide();
+                    
+                    let errorMessage = window.I18N ? I18N.get('ws.scrape_error', 'An error occurred while scraping the website.') : 'An error occurred while scraping the website.';
+                    if (xhr.responseJSON && xhr.responseJSON.error) {
+                        errorMessage += ' ' + xhr.responseJSON.error;
+                    }
+                    
+                    if (window.ESBToast) ESBToast.error(errorMessage);
+                    $('#scraped-content').html(`<div class="alert alert-danger">${errorMessage}</div>`);
+                }
+            });
+        }
+        
+        // Question form submission
+        $('#question-form').submit(function(e) {
+            e.preventDefault();
+            const question = $('#question-input').val();
+            
+            if (!question) {
+                const msg = window.I18N ? I18N.get('ws.enter_question', 'Please enter a question') : 'Please enter a question';
+                if (window.ESBToast) ESBToast.warn(msg); else alert(msg);
+                return;
+            }
+            
+            $('#question-loader').show();
+            $('#answer-container').hide();
+            
+            $.ajax({
+                url: '/ask-scraped-content',
+                method: 'POST',
+                data: { question: question },
+                success: function(data) {
+                    $('#question-loader').hide();
+                    
+                    if (data.error) {
+                        const prefix = window.I18N ? I18N.get('ws.error_prefix', 'Error: ') : 'Error: ';
+                        if (window.ESBToast) ESBToast.error(prefix + data.error); else alert(prefix + data.error);
+                        return;
+                    }
+                    
+                    // Display the answer
+                    $('#answer-container').html(data.answer.replace(/\n/g, '<br>'));
+                    $('#answer-container').show();
+                },
+                error: function() {
+                    $('#question-loader').hide();
+                    const qerr = window.I18N ? I18N.get('ws.question_error', 'An error occurred while processing your question. Please try again.') : 'An error occurred while processing your question. Please try again.';
+                    if (window.ESBToast) ESBToast.error(qerr); else alert(qerr);
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 

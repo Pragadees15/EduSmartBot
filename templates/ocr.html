@@ -1,0 +1,543 @@
+{% extends 'base.html' %}
+
+{% block title %}OCR & Image Analysis - EduSmartBot{% endblock %}
+
+{% block extra_css %}
+<style>
+    .file-upload-container {
+        border: 2px dashed #28a745;
+        border-radius: 12px;
+        padding: 30px 20px;
+        text-align: center;
+        background-color: rgba(255,255,255,0.6);
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        backdrop-filter: blur(6px);
+    }
+    
+    .file-upload-container:hover {
+        background-color: #e9ecef;
+        border-color: #146c43;
+    }
+    
+    .file-upload-container i {
+        font-size: 48px;
+        color: #28a745;
+        margin-bottom: 15px;
+    }
+    
+    .content-box {
+        max-height: 300px;
+        overflow-y: auto;
+        background-color: var(--card-bg);
+        border-radius: 12px;
+        padding: 15px;
+        border: 1px solid var(--card-border);
+    }
+    
+    .answer-box {
+        background-color: rgba(25,135,84,0.12);
+        border-left: 4px solid #28a745;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+    
+    .loader {
+        display: none;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #28a745;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 2s linear infinite;
+        margin: 20px auto;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .file-type-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        margin: 0 4px 8px 0;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: bold;
+    }
+    
+    .file-type-badge.pdf {
+        background-color: #dc3545;
+        color: white;
+    }
+    
+    .file-type-badge.image {
+        background-color: #17a2b8;
+        color: white;
+    }
+    
+    .file-type-badge.text {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .file-type-badge.docx {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .feature-item {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 15px;
+    }
+    
+    .feature-item i {
+        color: #28a745;
+        margin-right: 10px;
+        margin-top: 3px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1 class="mb-3 section-heading">
+            <i class="fas fa-file-alt text-success me-2"></i>
+            <span data-i18n="ocr.title">OCR & Image Analysis</span>
+        </h1>
+        <p class="lead section-subtitle" data-i18n="ocr.subtitle">Extract text from documents and analyze images with AI vision technology</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-upload me-2"></i><span data-i18n="ocr.upload_title">Upload Document or Image</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-2" data-i18n="ocr.upload_desc">Upload a file to extract educational content using our advanced AI tools.</p>
+                
+                <div class="mb-3">
+                    <div class="d-flex flex-wrap">
+                        <span class="file-type-badge pdf"><i class="fas fa-file-pdf me-1"></i> PDF</span>
+                        <span class="file-type-badge image"><i class="fas fa-image me-1"></i> Images (PNG, JPG)</span>
+                        <span class="file-type-badge text"><i class="fas fa-file-alt me-1"></i> TXT</span>
+                        <span class="file-type-badge docx"><i class="fas fa-file-word me-1"></i> DOCX</span>
+                    </div>
+                </div>
+                
+                <form id="file-upload-form" enctype="multipart/form-data">
+                    <div class="file-upload-container mb-3" id="upload-container">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <h5 data-i18n="ocr.drop_here">Drop your file here</h5>
+                        <p class="text-muted" data-i18n="ocr.click_browse">or click to browse files</p>
+                        <small class="text-muted d-block mb-2" data-i18n="ocr.vision_note">For images: We use AI vision technology for analysis</small>
+                        <input type="file" id="file-upload" name="file" style="position: absolute; opacity: 0; width: 100%; height: 100%; top: 0; left: 0; cursor: pointer;" accept=".pdf,.png,.jpg,.jpeg,.txt,.docx">
+                    </div>
+                    
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label for="mode-select" class="form-label small mb-1"><i class="fas fa-sliders-h me-1"></i>Processing mode</label>
+                            <select id="mode-select" class="form-select form-select-sm">
+                                <option value="auto" selected>Auto (recommended)</option>
+                                <option value="vision_only">Vision only (images)</option>
+                                <option value="ocr_only">OCR only (no vision)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="wrap-text" checked>
+                                <label class="form-check-label small" for="wrap-text"><i class="fas fa-align-left me-1"></i>Wrap text</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="file-info" class="alert alert-info mt-3 text-center" style="display:none;"></div>
+                    
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-success" id="upload-button" disabled>
+                            <i class="fas fa-cog me-1"></i> <span data-i18n="ocr.process_file">Process File</span>
+                        </button>
+                        <button type="button" class="btn btn-secondary ms-2" id="reset-button">
+                            <i class="fas fa-redo me-1"></i> <span data-i18n="common.reset">Reset</span>
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="upload-loader" class="loader mt-3"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-lightbulb me-2 text-warning"></i><span data-i18n="common.features">Features</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="feature-item">
+                    <i class="fas fa-eye"></i>
+                    <div>
+                        <strong data-i18n="ocr.vision_ai">Vision AI</strong>
+                        <p class="small mb-0" data-i18n="ocr.vision_ai_desc">Using granite3.2-vision model to analyze images and extract meaning</p>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <i class="fas fa-file-alt"></i>
+                    <div>
+                        <strong data-i18n="ocr.text_extraction">Text Extraction</strong>
+                        <p class="small mb-0" data-i18n="ocr.text_extraction_desc">Extract text from various document formats</p>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <i class="fas fa-chart-bar"></i>
+                    <div>
+                        <strong data-i18n="ocr.diagram_analysis">Diagram Analysis</strong>
+                        <p class="small mb-0" data-i18n="ocr.diagram_analysis_desc">Understand and explain diagrams, charts, and tables</p>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <i class="fas fa-question-circle"></i>
+                    <div>
+                        <strong data-i18n="ocr.ask_questions">Ask Questions</strong>
+                        <p class="small mb-0" data-i18n="ocr.ask_questions_desc">Ask questions about the extracted content</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4" id="content-card" style="display:none;">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-file-alt me-2"></i><span data-i18n="ocr.extracted_content">Extracted Content</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="small text-muted" id="meta-summary" style="display:none;"></div>
+                    <div>
+                        <button type="button" id="btn-copy" class="btn btn-outline-secondary btn-sm me-2"><i class="fas fa-copy me-1"></i>Copy</button>
+                        <button type="button" id="btn-download" class="btn btn-outline-secondary btn-sm"><i class="fas fa-download me-1"></i>Download</button>
+                    </div>
+                </div>
+                <div class="content-box mb-3" id="extracted-content"></div>
+                
+                <div class="mt-4">
+                    <h5 data-i18n="ocr.ask_about_content">Ask a Question About This Content</h5>
+                    <p class="text-muted small" data-i18n="ocr.ask_about_content_desc">You can ask questions about the extracted content above. The AI will analyze the content and provide answers based on what it finds.</p>
+                    <form id="question-form">
+                        <div class="input-group mb-3">
+                            <input type="text" id="question-input" class="form-control" placeholder="What would you like to know about this content?" data-i18n-placeholder="ocr.question_placeholder">
+                            <button class="btn btn-success" type="submit">
+                                <i class="fas fa-question-circle me-1"></i> <span data-i18n="ocr.ask_button">Ask</span>
+                            </button>
+                        </div>
+                    </form>
+                    <div id="question-loader" class="loader"></div>
+                    <div id="answer-container" class="answer-box" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Reset UI on page load/refresh
+        resetUI();
+        
+        function resetUI() {
+            // Clear file upload
+            $('#file-upload').val('');
+            $('#file-info').hide();
+            
+            // Remove any previous vision processing indicators
+            $('.vision-processing-indicator').remove();
+            
+            // Hide content card and answer
+            $('#content-card').hide();
+            $('#answer-container').hide();
+            
+            // Clear text
+            $('#extracted-content').html('');
+            $('#question-input').val('');
+            
+            // Hide loaders
+            $('#upload-loader').hide();
+            $('#question-loader').hide();
+            
+            // Disable upload button
+            $('#upload-button').prop('disabled', true);
+        }
+        
+        // Add reset button handler
+        $('#reset-button').click(function() {
+            // Clear session data by redirecting with clear parameter
+            window.location.href = '/ocr?clear=true';
+        });
+        
+        // File selection handler
+        $('#file-upload').change(function() {
+            const file = this.files[0];
+            
+            // Remove any previous vision processing indicators
+            $('.vision-processing-indicator').remove();
+            
+            if (file) {
+                // Show file info
+                const fileSize = (file.size / 1024 / 1024).toFixed(2); // in MB
+                let fileIcon = 'fa-file';
+                
+                // Set icon based on file type
+                const fileExt = file.name.split('.').pop().toLowerCase();
+                if (['pdf'].includes(fileExt)) fileIcon = 'fa-file-pdf';
+                else if (['png', 'jpg', 'jpeg'].includes(fileExt)) fileIcon = 'fa-file-image';
+                else if (['txt'].includes(fileExt)) fileIcon = 'fa-file-alt';
+                else if (['docx', 'doc'].includes(fileExt)) fileIcon = 'fa-file-word';
+                
+                $('#file-info').html(`<i class="fas ${fileIcon} me-2"></i><strong>${file.name}</strong> (${fileSize} MB)`).show();
+                $('#upload-button').prop('disabled', false);
+                
+                // Add special note for image files
+                if (['png', 'jpg', 'jpeg'].includes(fileExt)) {
+                    $('#file-info').append('<div class="mt-2 small"><i class="fas fa-info-circle me-1"></i>This image will be processed using our AI vision model.</div>');
+                }
+            } else {
+                $('#file-info').hide();
+                $('#upload-button').prop('disabled', true);
+            }
+        });
+        
+        // Drag and drop handlers
+        $('#upload-container').on('dragover', function(e) {
+            e.preventDefault();
+            $(this).css('border-color', '#28a745');
+            $(this).css('background-color', '#e8f4ea');
+        });
+        
+        $('#upload-container').on('dragleave', function(e) {
+            e.preventDefault();
+            $(this).css('border-color', '#28a745');
+            $(this).css('background-color', '#f8f9fa');
+        });
+        
+        $('#upload-container').on('drop', function(e) {
+            e.preventDefault();
+            $(this).css('border-color', '#28a745');
+            $(this).css('background-color', '#f8f9fa');
+            
+            // Remove any previous vision processing indicators
+            $('.vision-processing-indicator').remove();
+            
+            const file = e.originalEvent.dataTransfer.files[0];
+            if (file) {
+                // Check file type
+                const fileExt = file.name.split('.').pop().toLowerCase();
+                if (['pdf', 'png', 'jpg', 'jpeg', 'txt', 'docx', 'doc'].indexOf(fileExt) === -1) {
+                    if (window.ESBToast) ESBToast.error('Unsupported file type. Please upload a PDF, PNG, JPG, TXT, or DOCX file.'); else alert('Unsupported file type. Please upload a PDF, PNG, JPG, TXT, or DOCX file.');
+                    return;
+                }
+                
+                // Update file input
+                try {
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    document.getElementById('file-upload').files = dataTransfer.files;
+                    
+                    // Show file info
+                    const fileSize = (file.size / 1024 / 1024).toFixed(2); // in MB
+                    let fileIcon = 'fa-file';
+                    
+                    // Set icon based on file type
+                    if (['pdf'].includes(fileExt)) fileIcon = 'fa-file-pdf';
+                    else if (['png', 'jpg', 'jpeg'].includes(fileExt)) fileIcon = 'fa-file-image';
+                    else if (['txt'].includes(fileExt)) fileIcon = 'fa-file-alt';
+                    else if (['docx', 'doc'].includes(fileExt)) fileIcon = 'fa-file-word';
+                    
+                    $('#file-info').html(`<i class="fas ${fileIcon} me-2"></i><strong>${file.name}</strong> (${fileSize} MB)`).show();
+                    $('#upload-button').prop('disabled', false);
+                    
+                    // Add special note for image files
+                    if (['png', 'jpg', 'jpeg'].includes(fileExt)) {
+                        $('#file-info').append('<div class="mt-2 small"><i class="fas fa-info-circle me-1"></i>This image will be processed using our AI vision model.</div>');
+                    }
+                } catch (error) {
+                    console.error('DataTransfer error:', error);
+                    if (window.ESBToast) ESBToast.warn('Drag & drop not supported. Click to select a file instead.'); else alert('File upload via drag and drop is not supported in your browser. Please click the upload area to select a file instead.');
+                    $('#file-upload').click();
+                }
+            }
+        });
+        
+        // File upload form submission
+        $('#file-upload-form').submit(function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('file-upload');
+            if (!fileInput.files || !fileInput.files[0]) {
+                if (window.ESBToast) ESBToast.warn('Please select a file to upload'); else alert('Please select a file to upload');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('mode', ($('#mode-select').val() || 'auto'));
+            
+            // Show upload status message
+            const fileExt = file.name.split('.').pop().toLowerCase();
+            let statusMessage = 'Processing file...';
+            let isImageFile = false;
+            
+            if (['png', 'jpg', 'jpeg'].includes(fileExt)) {
+                isImageFile = true;
+                statusMessage = 'Analyzing image with AI vision model...';
+                $('#file-info').append('<div class="mt-2 vision-processing-indicator"><div class="spinner-border spinner-border-sm text-primary" role="status"></div> <span>AI vision model analyzing image...</span></div>');
+            }
+            
+            // Log file details for debugging
+            console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
+            
+            $('#upload-loader').show();
+            $('#content-card').hide();
+            $('#upload-button').prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...');
+            
+            $.ajax({
+                url: '/upload-file',
+                method: 'POST',
+                data: formData,
+                contentType: false, // Required for FormData
+                processData: false, // Required for FormData
+                success: function(data) {
+                    $('#upload-loader').hide();
+                    $('#upload-button').prop('disabled', false).html('<i class="fas fa-cog me-1"></i> Process File');
+                    
+                    // Remove the vision processing indicator if it exists
+                    $('.vision-processing-indicator').remove();
+                    
+                    if (data.error) {
+                        if (window.ESBToast) ESBToast.error('Error: ' + data.error); else alert('Error: ' + data.error);
+                        return;
+                    }
+                    
+                    // Display the extracted content
+                    const wrap = $('#wrap-text').is(':checked');
+                    $('#extracted-content').css('white-space', wrap ? 'normal' : 'pre');
+                    $('#extracted-content').html((data.text || '').replace(/\n/g, '<br>'));
+                    // Metadata summary
+                    const m = data.meta || {};
+                    const warn = (m.warnings && m.warnings.length) ? ` · <span class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>${m.warnings.length} warning(s)</span>` : '';
+                    $('#meta-summary').html(`<span class="badge bg-light text-dark me-2">${m.method || 'unknown'}</span><span class="text-muted">Mode: ${m.mode || 'auto'}</span>${warn}`).show();
+                    $('#content-card').show();
+                    
+                    // Scroll to content
+                    $('html, body').animate({
+                        scrollTop: $('#content-card').offset().top - 70
+                    }, 500);
+                },
+                error: function(xhr, status, error) {
+                    $('#upload-loader').hide();
+                    $('#upload-button').prop('disabled', false).html('<i class="fas fa-cog me-1"></i> Process File');
+                    
+                    // Remove the vision processing indicator if it exists
+                    $('.vision-processing-indicator').remove();
+                    
+                    console.error('Ajax error:', status, error);
+                    if (window.ESBToast) ESBToast.error('Failed to process file. ' + error); else alert('An error occurred while processing your file. Please try again. Error: ' + error);
+                }
+            });
+        });
+        // Copy and download handlers
+        $('#btn-copy').on('click', function() {
+            const text = $('#extracted-content').text();
+            navigator.clipboard.writeText(text).then(() => {
+                $(this).text('Copied').prop('disabled', true);
+                setTimeout(() => { $('#btn-copy').html('<i class="fas fa-copy me-1"></i>Copy').prop('disabled', false); }, 1200);
+            });
+        });
+        $('#btn-download').on('click', function() {
+            const text = $('#extracted-content').text();
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'extracted.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        // Wrap toggle
+        $('#wrap-text').on('change', function() {
+            const wrap = $(this).is(':checked');
+            $('#extracted-content').css('white-space', wrap ? 'normal' : 'pre');
+        });
+        
+        // Question form submission
+        $('#question-form').submit(function(e) {
+            e.preventDefault();
+            const question = $('#question-input').val();
+            
+            if (!question) {
+                if (window.ESBToast) ESBToast.warn('Please enter a question'); else alert('Please enter a question');
+                return;
+            }
+            
+            $('#question-loader').show();
+            $('#answer-container').hide();
+            
+            $.ajax({
+                url: '/ask-ocr-content',
+                method: 'POST',
+                data: { question: question },
+                success: function(data) {
+                    $('#question-loader').hide();
+                    
+                    if (data.error) {
+                        console.error('Error from server:', data.error);
+                        if (data.error === 'No extracted text available') {
+                            $('#answer-container').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>No document content found. Please upload a document first.</div>');
+                        } else {
+                            $('#answer-container').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>' + data.error + '</div>');
+                        }
+                        if (window.ESBToast) ESBToast.error(data.error);
+                        $('#answer-container').show();
+                        return;
+                    }
+                    
+                    // Display the answer
+                    $('#answer-container').html(data.answer.replace(/\n/g, '<br>'));
+                    $('#answer-container').show();
+                },
+                error: function(xhr, status, error) {
+                    $('#question-loader').hide();
+                    console.error('Ajax error:', status, error);
+                    $('#answer-container').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>An error occurred while processing your question. Please try again.</div>');
+                    if (window.ESBToast) ESBToast.error('Failed to process your question');
+                    $('#answer-container').show();
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 
