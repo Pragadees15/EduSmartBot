@@ -31,6 +31,7 @@ _The AI-native study studio for timetable mastery, vision-enhanced OCR, adaptive
 - [🧰 Tech Stack](#-tech-stack)
 - [🌀 Design & Motion](#-design--motion)
 - [⚙️ Setup](#-setup)
+- [🚀 Deployment Playbook](#-deployment-playbook)
 - [⚙️ Configuration Cheat Sheet](#️-configuration-cheat-sheet)
 - [🗺️ System Blueprint](#️-system-blueprint)
 - [🌐 Language Support](#-language-support)
@@ -288,6 +289,21 @@ CLI waveform while booting
 ollama pull mistral
 ollama pull granite3.2-vision:latest
 ```
+
+---
+
+## 🚀 Deployment Playbook
+
+| Stage | Tasks | Tips |
+| --- | --- | --- |
+| **Pre-flight** | - Generate a unique `SECRET_KEY`<br/>- Decide on `SESSION_FILE_DIR` with ample disk space<br/>- Pull and warm up Ollama models on the target host | `ollama serve` should be running as a background service before Flask boots. |
+| **Environment** | - Create `.env` with production values (secure cookies, HTTPS settings)<br/>- Point `VISION_MODEL` to a locally cached version | Use `SESSION_COOKIE_SECURE=true` behind TLS and pin `SESSION_COOKIE_SAMESITE=None` for cross-site embeds. |
+| **App server** | - Run under a WSGI server (`gunicorn`/`waitress` on Windows)<br/>- Scale with multiple workers if OCR/AI workloads spike | Example: `gunicorn --workers 3 --threads 4 app:app` (Linux/macOS). |
+| **Reverse proxy** | - Place Nginx/Apache/Traefik in front for TLS termination<br/>- Configure caching headers for static assets | Expose only `/uploads` if you need to serve processed files; otherwise keep it private. |
+| **Background jobs** | - Offset heavy OCR or scraping to task queues (RQ, Celery) if throughput grows | Route long-running tasks through worker processes to keep request latency low. |
+| **Monitoring** | - Enable structured logging<br/>- Track request latency and model inference time | Consider adding health-check endpoints and uptime alerts. |
+
+> 🧠 _Hosting tip:_ for quick demos, pair `flask run` with `flask-cloudflared` (set `USE_CLOUDFLARED=true`) to expose a temporary HTTPS tunnel without extra infrastructure.
 
 ---
 
